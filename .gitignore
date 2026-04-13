@@ -1,0 +1,16 @@
+# Unit tests
+*.gcno
+*.gcda
+unit_tests
+
+#Basic output files
+*.o
+*.a
+a.out
+*.sh
+coding-style-reports.log
+
+#IDE folder
+.vscode
+
+#Project related
