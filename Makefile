@@ -18,7 +18,6 @@ OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
 OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
 
 ASMFLAGS        := -p0 -v -i $(INC_DIR)
-LINKERFLAGS     := -m $(OUTPUT).map -n $(OUTPUT).sym -d
 FIXFLAGS        := -v -p0
 
 .PHONY: all clean
@@ -26,7 +25,7 @@ FIXFLAGS        := -v -p0
 all: $(OUTPUT).gb
 
 $(OUTPUT).gb: $(OBJ_FILES) | $(BUILD_DIR)
-	$(LINKER) -o $@ $(LINKERFLAGS) $(OBJ_FILES)
+	$(LINKER) -o $@ $(OBJ_FILES)
 	$(FIX) $(FIXFLAGS) $@
 	cp $@ $(ROOT_ROM)
 

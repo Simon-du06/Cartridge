@@ -9,6 +9,7 @@ unit_tests
 a.out
 *.sh
 coding-style-reports.log
+build/
 
 #IDE folder
 .vscode
