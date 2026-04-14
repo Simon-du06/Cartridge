@@ -10,7 +10,7 @@
 ;   Compression          : None.
 ;   Counter              : None.
 ;   Tile size            : 8 x 8
-;   Tiles                : 0 to 0
+;   Tiles                : 0 to 4
 ;
 ;   Palette colors       : None.
 ;   SGB Palette          : None.
@@ -22,9 +22,9 @@
 
 
 ; Bank of tiles.
-JesusBank EQU 0
+TileLabelBank EQU 0
 
 ; Start of tile array.
- GLOBAL Jesus
+ GLOBAL TileLabel
 
 ; End of JESUS.INC
