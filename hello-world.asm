@@ -52,7 +52,7 @@ CopyTilemap:
 	ld [rLCDC], a
 
 	; During the first (blank) frame, initialize display registers
-	ld a, %11100100
+	ld a, %00011011
 	ld [rBGP], a
 
 Done:
