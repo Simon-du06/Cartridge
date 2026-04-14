@@ -14,3 +14,5 @@ coding-style-reports.log
 .vscode
 
 #Project related
+software/
+*.gbr
