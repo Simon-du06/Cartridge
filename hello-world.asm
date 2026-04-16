@@ -54,9 +54,16 @@ CopyTilemap:
 	ld a, $00
 	ld [rBGP], a
 	call FadeIn
+	ld c, 50
 
 Done:
-	jr Done
+	call WaitFrame
+	dec c
+	jr nz, Done
+	call FadeOut
+
+End:
+	jr End
 
 SECTION "Fade In", ROM0
 FadeIn:
@@ -71,6 +78,23 @@ FadeIn:
 	ld b, 20
 	call WaitFrames
 	ld a, $E4
+	ldh [rBGP], a
+	ld b, 20
+	call WaitFrames
+	ret
+
+FadeOut:
+	ld b, 20
+	call WaitFrames
+	ld a, $E4
+	ldh [rBGP], a
+	ld b, $F2
+	call WaitFrames
+	ld a, $F6
+	ldh [rBGP], a
+	ld b, 20
+	call WaitFrames
+	ld a, $FF
 	ldh [rBGP], a
 	ld b, 20
 	call WaitFrames
