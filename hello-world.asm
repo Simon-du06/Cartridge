@@ -10,13 +10,10 @@ EntryPoint:
 	; Shut down audio circuitry
 	ld a, 0
 	ld [rNR52], a
-
 	; Do not turn the LCD off outside of VBlank
-WaitVBlank:
-	ld a, [rLY]
-	cp 144
-	jr c, WaitVBlank
+	call WaitVBlank
 
+SetupTiles:
 	; Turn the LCD off
 	ld a, 0
 	ld [rLCDC], a
@@ -25,6 +22,8 @@ WaitVBlank:
 	ld de, Tiles
 	ld hl, $9000
 	ld bc, Tiles.End - Tiles
+
+	
 CopyTiles:
 	ld a, [de]
 	ld [hli], a
@@ -52,12 +51,50 @@ CopyTilemap:
 	ld [rLCDC], a
 
 	; During the first (blank) frame, initialize display registers
-	ld a, %00011011
+	ld a, $00
 	ld [rBGP], a
+	call FadeIn
 
 Done:
 	jr Done
 
+SECTION "Fade In", ROM0
+FadeIn:
+	ld b, 20
+	call WaitFrames
+	ld a, $54
+	ldh [rBGP], a
+	ld b, 20
+	call WaitFrames
+	ld a, $A4
+	ldh [rBGP], a
+	ld b, 20
+	call WaitFrames
+	ld a, $E4
+	ldh [rBGP], a
+	ld b, 20
+	call WaitFrames
+	ret
+
+WaitFrames:
+.Loop:
+	call WaitFrame
+	dec b
+	jr nz, .Loop
+	ret
+WaitFrame:
+	call WaitVBlank
+.WaitVBlankEnd:
+	ld a, [rLY]
+	cp 144
+	jr nc, .WaitVBlankEnd
+	ret
+
+WaitVBlank:
+	ld a, [rLY]
+	cp 144
+	jr c, WaitVBlank
+	ret
 
 SECTION "Tile data", ROM0
 
