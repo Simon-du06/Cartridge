@@ -3,7 +3,7 @@ ASM             := rgbasm
 LINKER          := rgblink
 FIX             := rgbfix
 
-PROJECT_NAME    := hello-world
+PROJECT_NAME    := arkanoid
 BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 OUTPUT          := $(BUILD_DIR)/$(PROJECT_NAME)
@@ -12,7 +12,7 @@ INC_DIR         := inc/
 
 # Explicit source list (add files here manually).
 SRC_FILES       := \
-	hello-world.asm
+	main.asm
 
 OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
 OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
