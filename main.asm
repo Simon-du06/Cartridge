@@ -66,6 +66,9 @@ ClearOam:
     ld a, 0
     ld [wFrameCounter], a
 
+    ld [wCurKeys], a
+    ld [wNewKeys], a
+
 Main:
     ; Wait until it's *not* VBlank
     ld a, [rLY]
@@ -76,6 +79,24 @@ WaitVBlank2:
     cp 144
 	jp c, WaitVBlank2
 
+    ; Check the current keys every frame and move left or right.
+    call UpdateKeys
+
+    ; check if left arrow is pressed
+CheckLeft:
+    ld a, [wCurKeys]
+    and a, PAD_LEFT
+    jp z, CheckRight
+Left:
+    ld a, [STARTOF(OAM) + 1]
+    dec a
+
+    ; chek collision with wall before moving
+    cp a, 15
+    jp z, Main
+    ld [STARTOF(OAM) + 1], a
+    jp Main
+
     ld a, [wFrameCounter]
     inc a
     ld [wFrameCounter], a
@@ -85,12 +106,20 @@ WaitVBlank2:
     ; Reset the frame counter back to 0
     ld a, 0
     ld [wFrameCounter], a
-
-    ; Move the paddle one pixel to the right.
+CheckRight:
+    ld a, [wCurKeys]
+    and a, PAD_RIGHT
+    jp z, Main
+Right:
     ld a, [STARTOF(OAM) + 1]
     inc a
+
+    ; check collision with right wall
+    cp a, 105
+    jp z, Main
     ld [STARTOF(OAM) + 1], a
     jp Main
+
 ; Copy bytes from one area to another.
 ; @param de: Source
 ; @param hl: Destination
@@ -104,6 +133,43 @@ MemCopy:
     or a, c
     jp nz, MemCopy
     ret
+
+UpdateKeys:
+  ; Poll half the controller
+  ld a, JOYP_GET_BUTTONS
+  call .onenibble
+  ld b, a ; B7-4 = 1; B3-0 = unpressed buttons
+
+  ; Poll the other half
+  ld a, JOYP_GET_CTRL_PAD
+  call .onenibble
+  swap a ; A7-4 = unpressed directions; A3-0 = 1
+  xor a, b ; A = pressed buttons + directions
+  ld b, a ; B = pressed buttons + directions
+
+  ; And release the controller
+  ld a, JOYP_GET_NONE
+  ldh [rJOYP], a
+
+  ; Combine with previous wCurKeys to make wNewKeys
+  ld a, [wCurKeys]
+  xor a, b ; A = keys that changed state
+  and a, b ; A = keys that changed to pressed
+  ld [wNewKeys], a
+  ld a, b
+  ld [wCurKeys], a
+  ret
+
+.onenibble
+  ldh [rJOYP], a ; switch the key matrix
+  call .knownret ; burn 10 cycles calling a known ret
+  ldh a, [rJOYP] ; ignore value while waiting for the key matrix to settle
+  ldh a, [rJOYP]
+  ldh a, [rJOYP] ; this read counts
+  or a, $F0 ; A7-4 = 1; A3-0 = unpressed keys
+.knownret
+  ret
+
 
 
 
@@ -379,3 +445,7 @@ PaddleEnd:
 
 SECTION "Counter", WRAM0
 wFrameCounter: db
+
+SECTION "Input Variables", WRAM0
+wCurKeys: db
+wNewKeys: db
