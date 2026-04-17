@@ -34,25 +34,72 @@ CopyTiles:
     ld de, Tilemap
     ld hl, $9800
     ld bc, TilemapEnd - Tilemap
-CopyTileMap:
+CopyTilemap:
     ld a, [de]
     ld [hli], a
     inc de
     dec bc
     ld a, b
     or a, c
-    jp nz, CopyTileMap
+    jp nz, CopyTilemap
+
+	; Copy the paddle tile
+	ld de, Paddle
+	ld hl, $8000
+	ld bc, PaddleEnd - Paddle
+CopyPaddle:
+	ld a, [de]
+	ld [hli], a
+	inc de
+	dec bc
+	ld a, b
+	or a, c
+	jp nz, CopyPaddle
+
+    ld a, 0
+    ld b, 160
+    ld hl, STARTOF(OAM)
+ClearOam:
+    ld [hli], a
+    dec b
+    jp nz, ClearOam
+
+    ld hl, STARTOF(OAM)
+    ld a, 128 + 16
+    ld [hli], a
+    ld a, 16 + 8
+    ld [hli], a
+    ld a, 0
+    ld [hli], a
+    ld [hli], a
 
     ; Turn the LCD on
-    ld a, LCDC_ON | LCDC_BG_ON
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
 
     ; During the first (blank) frame, initialize display registers
     ld a, %11100100
     ld [rBGP], a
+    ld a, %11100100
+    ld [rOBP0], a
 
-Done:
-    jp Done
+Main:
+    ; Wait until it's *not* VBlank
+    ld a, [rLY]
+    cp 144
+    jp nc, Main
+WaitVBlank2:
+    ld a, [rLY]
+    cp 144
+	jp c, WaitVBlank2
+
+    ; Move the paddle one pixel to the right.
+    ld a, [STARTOF(OAM) + 1]
+    inc a
+    ld [STARTOF(OAM) + 1], a
+    jp Main
+
+
 
 Tiles:
 	dw `33333333
@@ -313,3 +360,13 @@ Tilemap:
 	db $04, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 TilemapEnd:
 
+Paddle:
+    dw `13333331
+    dw `30000003
+    dw `13333331
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+PaddleEnd:
