@@ -21,41 +21,20 @@ WaitVBlank:
     ld de, Tiles
     ld hl, $9000
     ld bc, TilesEnd - Tiles
+    call MemCopy
 CopyTiles:
-    ld a, [de]
-    ld [hli], a
-    inc de
-    dec bc
-    ld a, b
-    or a, c
-    jp nz, CopyTiles
-
     ; Copy the tilemap
     ld de, Tilemap
     ld hl, $9800
     ld bc, TilemapEnd - Tilemap
+    call MemCopy
 CopyTilemap:
-    ld a, [de]
-    ld [hli], a
-    inc de
-    dec bc
-    ld a, b
-    or a, c
-    jp nz, CopyTilemap
-
 	; Copy the paddle tile
 	ld de, Paddle
 	ld hl, $8000
 	ld bc, PaddleEnd - Paddle
+    call MemCopy
 CopyPaddle:
-	ld a, [de]
-	ld [hli], a
-	inc de
-	dec bc
-	ld a, b
-	or a, c
-	jp nz, CopyPaddle
-
     ld a, 0
     ld b, 160
     ld hl, STARTOF(OAM)
@@ -83,6 +62,10 @@ ClearOam:
     ld a, %11100100
     ld [rOBP0], a
 
+    ; Initialize global variables
+    ld a, 0
+    ld [wFrameCounter], a
+
 Main:
     ; Wait until it's *not* VBlank
     ld a, [rLY]
@@ -93,11 +76,34 @@ WaitVBlank2:
     cp 144
 	jp c, WaitVBlank2
 
+    ld a, [wFrameCounter]
+    inc a
+    ld [wFrameCounter], a
+    cp a, 15
+    jp nz, Main
+
+    ; Reset the frame counter back to 0
+    ld a, 0
+    ld [wFrameCounter], a
+
     ; Move the paddle one pixel to the right.
     ld a, [STARTOF(OAM) + 1]
     inc a
     ld [STARTOF(OAM) + 1], a
     jp Main
+; Copy bytes from one area to another.
+; @param de: Source
+; @param hl: Destination
+; @param bc: Length
+MemCopy:
+    ld a, [de]
+    ld [hli], a
+    inc de
+    dec bc
+    ld a, b
+    or a, c
+    jp nz, MemCopy
+    ret
 
 
 
@@ -370,3 +376,6 @@ Paddle:
     dw `00000000
     dw `00000000
 PaddleEnd:
+
+SECTION "Counter", WRAM0
+wFrameCounter: db
