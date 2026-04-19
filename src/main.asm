@@ -73,9 +73,9 @@ WaitVBlank2:
     call UpdateKeys
 
 	; make map scroll
-	ld a, [$FF43]
+	ld a, [rSCX]
 	inc a
-	ld [$FF43], a
+	ld [rSCY], a
 
     ; check if left arrow is pressed
 	jp Main
