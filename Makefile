@@ -3,7 +3,7 @@ ASM             := rgbasm
 LINKER          := rgblink
 FIX             := rgbfix
 
-PROJECT_NAME    := arkanoid
+PROJECT_NAME    := dino_game
 BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 OUTPUT          := $(BUILD_DIR)/$(PROJECT_NAME)
