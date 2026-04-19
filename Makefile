@@ -8,11 +8,11 @@ BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 OUTPUT          := $(BUILD_DIR)/$(PROJECT_NAME)
 ROOT_ROM        := $(PROJECT_NAME).gb
-INC_DIR         := inc/
+INC_DIR         := include/
 
 # Explicit source list (add files here manually).
 SRC_FILES       := \
-	main.asm
+	src/main.asm
 
 OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
 OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
@@ -20,7 +20,7 @@ OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
 ASMFLAGS        := -p0 -v -i $(INC_DIR)
 FIXFLAGS        := -v -p0
 
-.PHONY: all clean
+.PHONY: all clean fclean re
 
 all: $(OUTPUT).gb
 
