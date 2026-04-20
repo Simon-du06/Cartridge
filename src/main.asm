@@ -28,6 +28,12 @@ CopyTiles:
     ld hl, $9800
     ld bc, TilemapEnd - Tilemap
     call MemCopy
+
+    ; copy duck
+    ld de, Duck
+    ld hl, $8000
+    ld bc, DuckEnd - Duck
+    call MemCopy
 CopyTilemap:
     ld a, 0
     ld b, 160
@@ -39,15 +45,23 @@ ClearOam:
     jp nz, ClearOam
 
 	; initialize duck in OAM
+    ld hl, STARTOF(OAM)
+    ld a, 96 + 16
+    ld [hli], a
+    ld a, 13 + 8
+    ld [hli], a
+    ld a, 0
+    ld [hli], a
+
 
     ; Turn the LCD on
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
 
     ; During the first (blank) frame, initialize display registers
-    ld a, %00100111
+    ld a, %00011011
     ld [rBGP], a
-    ld a, %00100111
+    ld a, %11100100
     ld [rOBP0], a
 
     ; Initialize global variables
@@ -67,15 +81,33 @@ WaitVBlank2:
     cp 144
 	jp c, WaitVBlank2
 
-	; add the duck movement in oam
+    ; make map scroll
+	ld a, [rSCX]
+	inc a
+    ld [rSCX], a
 
     ; Check the current keys every frame and move left or right.
     call UpdateKeys
 
-	; make map scroll
-	ld a, [rSCX]
-	inc a
-	ld [rSCY], a
+CheckUp:
+    ld a, [wCurKeys]
+    and a, PAD_UP
+    jp z, Main
+Up:
+    ld a, [STARTOF(OAM) + 1]
+    add a, 15
+    ld [STARTOF(OAM) + 1], a
+    jp Main
+
+    ld a, [wFrameCounter]
+    inc a
+    ld [wFrameCounter], a
+    cp a, 15
+    jp nz, Main
+
+    ; Reset the frame counter back to 0
+    ld a, 0
+    ld [wFrameCounter], a
 
     ; check if left arrow is pressed
 	jp Main
@@ -133,7 +165,7 @@ UpdateKeys:
 
 SECTION "Tiles", ROM0
 Tiles:
-    INCBIN "../assets/map.chr"
+    INCBIN "../assets/map.chr", 0, 192
 TilesEnd:
 
 Tilemap:
@@ -155,6 +187,10 @@ Tilemap:
     db $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
     db $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 TilemapEnd:
+
+Duck:
+    INCBIN "../assets/duck.chr",  0, 136
+DuckEnd:
 
 SECTION "Counter", WRAM0
 wFrameCounter: db
