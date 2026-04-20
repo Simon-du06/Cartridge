@@ -1,4 +1,5 @@
 INCLUDE "hardware.inc"
+INCLUDE "../src/duck.asm"
 
 SECTION "Header", ROM0[$100]
 
@@ -44,15 +45,8 @@ ClearOam:
     dec b
     jp nz, ClearOam
 
-	; initialize duck in OAM
-    ld hl, STARTOF(OAM)
-    ld a, 96 + 16
-    ld [hli], a
-    ld a, 13 + 8
-    ld [hli], a
-    ld a, 0
-    ld [hli], a
-    ld [hli], a
+	; Initialize duck state and render its 3x3 sprite block.
+    call InitDuck
 
 
     ; Turn the LCD on
@@ -62,7 +56,7 @@ ClearOam:
     ; During the first (blank) frame, initialize display registers
     ld a, %00011011
     ld [rBGP], a
-    ld a, %11100100
+    ld a, %11011000
     ld [rOBP0], a
 
     ; Initialize global variables
@@ -87,28 +81,10 @@ WaitVBlank2:
 	inc a
     ld [rSCX], a
 
-    ; Check the current keys every frame and move left or right.
+    ; Check the current keys every frame and update duck position.
     call UpdateKeys
-
-CheckUp:
-    ld a, [wCurKeys]
-    and a, PAD_UP
-    jp z, CheckDown
-Up:
-    ld a, [STARTOF(OAM)]
-    dec a
-    ld [STARTOF(OAM)], a
-    jp Main
-CheckDown:
-    ld a, [wCurKeys]
-    and a, PAD_DOWN
-    jp z, Main
-Down:
-    ld a, [STARTOF(OAM)]
-    cp a, 96 + 16
-    jp z, Main
-    inc a
-    ld [STARTOF(OAM)], a
+    call UpdateDuck
+    call DrawDuck
     jp Main
 
 
