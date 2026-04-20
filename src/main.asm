@@ -52,6 +52,7 @@ ClearOam:
     ld [hli], a
     ld a, 0
     ld [hli], a
+    ld [hli], a
 
 
     ; Turn the LCD on
@@ -92,25 +93,23 @@ WaitVBlank2:
 CheckUp:
     ld a, [wCurKeys]
     and a, PAD_UP
-    jp z, Main
+    jp z, CheckDown
 Up:
-    ld a, [STARTOF(OAM) + 1]
-    add a, 15
-    ld [STARTOF(OAM) + 1], a
+    ld a, [STARTOF(OAM)]
+    dec a
+    ld [STARTOF(OAM)], a
     jp Main
-
-    ld a, [wFrameCounter]
-    inc a
-    ld [wFrameCounter], a
-    cp a, 15
-    jp nz, Main
-
-    ; Reset the frame counter back to 0
-    ld a, 0
-    ld [wFrameCounter], a
-
-    ; check if left arrow is pressed
-	jp Main
+CheckDown:
+    ld a, [wCurKeys]
+    and a, PAD_DOWN
+    jp z, Main
+Down:
+    ld a, [STARTOF(OAM)]
+    sub a
+    cp a, 96
+    jp z, Main
+    ld [STARTOF(OAM)], a
+    jp Main
 
 
 ; Copy bytes from one area to another.
@@ -189,7 +188,7 @@ Tilemap:
 TilemapEnd:
 
 Duck:
-    INCBIN "../assets/duck.chr",  0, 136
+    INCBIN "../assets/duck.chr",  0, 192
 DuckEnd:
 
 SECTION "Counter", WRAM0
