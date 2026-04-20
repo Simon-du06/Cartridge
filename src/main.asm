@@ -105,9 +105,9 @@ CheckDown:
     jp z, Main
 Down:
     ld a, [STARTOF(OAM)]
-    sub a
-    cp a, 96
+    cp a, 96 + 16
     jp z, Main
+    inc a
     ld [STARTOF(OAM)], a
     jp Main
 
