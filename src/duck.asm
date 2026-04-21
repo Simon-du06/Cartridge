@@ -2,7 +2,7 @@ DEF DUCK_X            EQU 13
 DEF DUCK_START_Y      EQU 93
 DEF DUCK_MAX_Y        EQU 93
 DEF DUCK_OAM_X        EQU DUCK_X + 8
-DEF DUCK_JUMP_FORCE   EQU 7
+DEF DUCK_JUMP_FORCE   EQU 4
 DEF GRAVITY			  EQU 1
 DEF GRAVITY_TICK_RATE EQU 4
 
@@ -60,6 +60,7 @@ UpdateDuck:
 
 	ld a, [wDuckGravityTick]
 	inc a
+	ld [wDuckGravityTick], a
 	cp GRAVITY_TICK_RATE
 	jp c, .checkGround
 	xor a
@@ -70,8 +71,6 @@ UpdateDuck:
 	jp .checkGround
 
 .checkGround
-	ld [wDuckGravityTick], a
-
 	ld a, [wDuckY]
 	cp DUCK_MAX_Y
 	jp nc, .land
