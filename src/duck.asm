@@ -1,43 +1,80 @@
 DEF DUCK_X            EQU 13
 DEF DUCK_START_Y      EQU 93
-DEF DUCK_MIN_Y        EQU 0
 DEF DUCK_MAX_Y        EQU 93
 DEF DUCK_OAM_X        EQU DUCK_X + 8
+DEF DUCK_JUMP_FORCE   EQU 10
+DEF GRAVITY			  EQU 1
 
 SECTION "Duck State", WRAM0
-wDuckY: db
+wDuckY: DB
+wDuckSpeed: DB
+wIsJumping: DB
 
 SECTION "Duck Logic", ROM0
 
 InitDuck:
 	ld a, DUCK_START_Y
 	ld [wDuckY], a
+	ld a, 1
+	ld [wDuckSpeed], a
+	ld a, 0
+	ld [wIsJumping], a
 	call DrawDuck
 	ret
 
 ; Update duck Y based on input (X is fixed).
 UpdateDuck:
-	ld a, [wCurKeys]
-	and a, PAD_UP
-	jp z, .checkDown
+	ld a, [wIsJumping]
+	or a
+	jp nz, .applyJump
 
+	ld a, [wCurKeys]
+	and PAD_UP
+	jp z, .jumpOver
+
+	ld a, 1
+	ld [wIsJumping], a
+	ld a, DUCK_JUMP_FORCE
+	ld [wDuckSpeed], a
+	jp .applyJump
+
+
+	; ld a, [wDuckY]
+	; cp a, DUCK_MIN_Y
+	; jp z, .checkDown
+	; dec a
+	; ld [wDuckY], a
+
+
+.applyJump
+	ld a, [wDuckSpeed]
+	ld b, a
 	ld a, [wDuckY]
-	cp a, DUCK_MIN_Y
-	jp z, .checkDown
-	dec a
+	sub b
 	ld [wDuckY], a
 
-.checkDown
-	ld a, [wCurKeys]
-	and a, PAD_DOWN
-	ret z
+	ld a, [wDuckSpeed]
+	sub GRAVITY
+	ld [wDuckSpeed], a
 
 	ld a, [wDuckY]
-	cp a, DUCK_MAX_Y
-	ret z
-	inc a
-	ld [wDuckY], a
+	cp DUCK_MAX_Y
+	jp nc, .land
+	jp c, .jumpOver
+	ld a, 0
+	ld [wDuckSpeed], a
+	ld [wIsJumping], a
 	ret
+
+.land
+	ld a, 0
+	ld [wDuckSpeed], a
+	ld [wIsJumping], a
+	ret
+
+.jumpOver
+	ret
+
 
 ; Draw duck as a 3x3 group of 8x8 OBJ sprites using a compact layout table.
 DrawDuck:
@@ -121,6 +158,6 @@ DrawObj:
 	ld [hli], a
 	ld a, b
 	ld [hli], a
-	xor a, a
+	xor a
 	ld [hli], a
 	ret
