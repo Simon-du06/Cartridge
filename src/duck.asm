@@ -2,13 +2,15 @@ DEF DUCK_X            EQU 13
 DEF DUCK_START_Y      EQU 93
 DEF DUCK_MAX_Y        EQU 93
 DEF DUCK_OAM_X        EQU DUCK_X + 8
-DEF DUCK_JUMP_FORCE   EQU 10
+DEF DUCK_JUMP_FORCE   EQU 7
 DEF GRAVITY			  EQU 1
+DEF GRAVITY_TICK_RATE EQU 4
 
 SECTION "Duck State", WRAM0
 wDuckY: DB
 wDuckSpeed: DB
 wIsJumping: DB
+wDuckGravityTick: DB
 
 SECTION "Duck Logic", ROM0
 
@@ -19,6 +21,7 @@ InitDuck:
 	ld [wDuckSpeed], a
 	ld a, 0
 	ld [wIsJumping], a
+	ld [wDuckGravityTick], a
 	call DrawDuck
 	ret
 
@@ -34,6 +37,8 @@ UpdateDuck:
 
 	ld a, 1
 	ld [wIsJumping], a
+	xor a
+	ld [wDuckGravityTick], a
 	ld a, DUCK_JUMP_FORCE
 	ld [wDuckSpeed], a
 	jp .applyJump
@@ -53,23 +58,32 @@ UpdateDuck:
 	sub b
 	ld [wDuckY], a
 
+	ld a, [wDuckGravityTick]
+	inc a
+	cp GRAVITY_TICK_RATE
+	jp c, .checkGround
+	xor a
+	ld [wDuckGravityTick], a
 	ld a, [wDuckSpeed]
 	sub GRAVITY
 	ld [wDuckSpeed], a
+	jp .checkGround
+
+.checkGround
+	ld [wDuckGravityTick], a
 
 	ld a, [wDuckY]
 	cp DUCK_MAX_Y
 	jp nc, .land
-	jp c, .jumpOver
-	ld a, 0
-	ld [wDuckSpeed], a
-	ld [wIsJumping], a
-	ret
+	jp .jumpOver
 
 .land
-	ld a, 0
+	ld a, DUCK_MAX_Y
+	ld [wDuckY], a
+	xor a
 	ld [wDuckSpeed], a
 	ld [wIsJumping], a
+	ld [wDuckGravityTick], a
 	ret
 
 .jumpOver

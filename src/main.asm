@@ -66,6 +66,9 @@ ClearOam:
     ld [wCurKeys], a
     ld [wNewKeys], a
 
+    ld a, 2
+    ld [wScrollTick], a
+
 Main:
     ; Wait until it's *not* VBlank
     ld a, [rLY]
@@ -78,7 +81,8 @@ WaitVBlank2:
 
     ; make map scroll
 	ld a, [rSCX]
-	inc a
+    ld hl, wScrollTick
+    add a, [hl]
     ld [rSCX], a
 
     ; Check the current keys every frame and update duck position.
@@ -87,6 +91,20 @@ WaitVBlank2:
     call DrawDuck
     jp Main
 
+UpdateTick:
+    ld a, [wScrollTick]
+    cp 1
+    jr z, .increaseTick
+    cp 2
+    jr z, .increaseTick
+
+.increaseTick
+    ld a, 3
+    ld [wScrollTick], a
+
+.decreaseTick
+    ld a, 2
+    ld [wScrollTick], a
 
 ; Copy bytes from one area to another.
 ; @param de: Source
@@ -173,3 +191,4 @@ wFrameCounter: db
 SECTION "Input Variables", WRAM0
 wCurKeys: db
 wNewKeys: db
+wScrollTick: Db
