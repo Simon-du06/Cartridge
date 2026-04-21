@@ -35,6 +35,12 @@ CopyTiles:
     ld hl, $8000
     ld bc, DuckEnd - Duck
     call MemCopy
+
+    ; copy 
+    ld de, Cactus
+    ld hl, $8192
+    ld bc, CactusEnd - Cactus
+    call MemCopy
 CopyTilemap:
     ld a, 0
     ld b, 160
@@ -184,6 +190,10 @@ TilemapEnd:
 Duck:
     INCBIN "../assets/duck.chr",  0, 192
 DuckEnd:
+
+Cactus:
+    INCBIN "../assets/cactus.2bpp"
+CactusEnd:
 
 SECTION "Counter", WRAM0
 wFrameCounter: db
