@@ -1,5 +1,6 @@
 INCLUDE "hardware.inc"
-INCLUDE "../src/duck.asm"
+INCLUDE "src/duck.asm"
+INCLUDE "src/cactus.asm"
 
 SECTION "Header", ROM0[$100]
 
@@ -38,7 +39,7 @@ CopyTiles:
 
     ; copy 
     ld de, Cactus
-    ld hl, $8192
+    ld hl, CACTUS_VRAM_ADDR
     ld bc, CactusEnd - Cactus
     call MemCopy
 CopyTilemap:
@@ -54,6 +55,7 @@ ClearOam:
 	; Initialize duck state and render its 3x3 sprite block.
     call InitDuck
 
+    call InitCactus
 
     ; Turn the LCD on
     ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
@@ -94,7 +96,9 @@ WaitVBlank2:
     ; Check the current keys every frame and update duck position.
     call UpdateKeys
     call UpdateDuck
+    call UpdateCactus
     call DrawDuck
+    call DrawCactus
     jp Main
 
 UpdateTick:
@@ -192,7 +196,7 @@ Duck:
 DuckEnd:
 
 Cactus:
-    INCBIN "../assets/cactus.2bpp"
+    INCBIN "../assets/cactus.chr", 0, 128
 CactusEnd:
 
 SECTION "Counter", WRAM0

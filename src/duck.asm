@@ -91,73 +91,59 @@ UpdateDuck:
 
 ; Draw duck as a 3x3 group of 8x8 OBJ sprites using a compact layout table.
 DrawDuck:
-	ld hl, STARTOF(OAM)
-	call DrawDuckTopRow
-	call DrawDuckMiddleRow
-	call DrawDuckBottomRow
-	ret
-
-DrawDuckTopRow:
 	ld a, [wDuckY]
 	add a, 16
-	ld d, a
-
-	ld a, d
 	ld c, DUCK_OAM_X
 	ld b, 0
-	call DrawObj
-
-	ld a, d
-	ld c, DUCK_OAM_X + 8
-	ld b, 1
-	call DrawObj
-
-	ld a, d
-	ld c, DUCK_OAM_X + 16
-	ld b, 2
-	call DrawObj
+	ld hl, STARTOF(OAM)
+	call Draw3x3Obj
 	ret
 
-DrawDuckMiddleRow:
-	ld a, [wDuckY]
-	add a, 24
+; Draw a 3x3 block of 8x8 OBJ sprites.
+; @param a: top-left Y (OAM space)
+; @param c: top-left X (OAM space)
+; @param b: first tile index (uses b..b+8)
+; @param hl: destination OAM pointer
+Draw3x3Obj:
 	ld d, a
+	ld e, c
+	call Draw3ObjRow
 
 	ld a, d
-	ld c, DUCK_OAM_X
-	ld b, 3
-	call DrawObj
+	add a, 8
+	ld d, a
+	call Draw3ObjRow
 
 	ld a, d
-	ld c, DUCK_OAM_X + 8
-	ld b, 4
-	call DrawObj
-
-	ld a, d
-	ld c, DUCK_OAM_X + 16
-	ld b, 5
-	call DrawObj
+	add a, 8
+	ld d, a
+	call Draw3ObjRow
 	ret
 
-DrawDuckBottomRow:
-	ld a, [wDuckY]
-	add a, 32
-	ld d, a
-
+; Draw one row of 3 OBJ sprites at Y=d, starting X=e.
+; @param d: row Y (OAM space)
+; @param e: row start X (OAM space)
+; @param b: next tile index (incremented by 3)
+; @param hl: destination OAM pointer
+Draw3ObjRow:
+	ld c, e
 	ld a, d
-	ld c, DUCK_OAM_X
-	ld b, 6
 	call DrawObj
+	inc b
 
+	ld a, e
+	add a, 8
+	ld c, a
 	ld a, d
-	ld c, DUCK_OAM_X + 8
-	ld b, 7
 	call DrawObj
+	inc b
 
+	ld a, e
+	add a, 16
+	ld c, a
 	ld a, d
-	ld c, DUCK_OAM_X + 16
-	ld b, 8
 	call DrawObj
+	inc b
 	ret
 
 ; Write one OBJ entry at [HL]: Y, X, tile, attrs(0)
