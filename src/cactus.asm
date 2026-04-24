@@ -3,6 +3,10 @@ DEF CACTUS_START_X EQU 93
 DEF CACTUS_VRAM_ADDR EQU $8190
 DEF CACTUS_TILE_BASE EQU (CACTUS_VRAM_ADDR - $8000) / 16
 DEF CACTUS_OAM_ADDR  EQU $FE00 + (9 * 4)
+DEF CACTUS_HITBOX_X  EQU 8
+DEF CACTUS_HITBOX_Y  EQU 16
+DEF CACTUS_HITBOX_W  EQU 4
+DEF CACTUS_HITBOX_H  EQU 12
 
 SECTION "Cactus State", WRAM0
 wCactusX: DB
@@ -15,9 +19,9 @@ InitCactus:
     ret
 
 UpdateCactus:
-    ld a, [rSCX]
+    ld a, [wCactusX]
     ld hl, wScrollTick
-    add a, [hl]
+    sub a, [hl]
     ld [wCactusX], a
 
 DrawCactus:
@@ -31,6 +35,46 @@ DrawCactus:
     ld hl, CACTUS_OAM_ADDR
     call Draw4x2Obj
     ret
+
+; Returns carry set when the duck overlaps the narrow cactus hitbox.
+CheckCactusCollision:
+	ld a, [wCactusX]
+	add a, CACTUS_HITBOX_X
+	ld b, a
+	add a, CACTUS_HITBOX_W
+	ld c, a
+
+	ld a, DUCK_X
+	ld d, a
+	add a, 18
+	ld e, a
+
+	ld a, b
+	cp e
+	ret nc
+	ld a, d
+	cp c
+	ret nc
+
+	ld a, [wDuckY]
+	ld d, a
+	add a, 16
+	ld e, a
+
+	ld a, CACTUS_Y + CACTUS_HITBOX_Y
+	ld b, a
+	add a, CACTUS_HITBOX_H
+	ld c, a
+
+	ld a, b
+	cp e
+	ret nc
+	ld a, d
+	cp c
+	ret nc
+
+	scf
+	ret
 
 ; Draw a 3x3 block of 8x8 OBJ sprites.
 ; @param a: top-left Y (OAM space)

@@ -99,7 +99,12 @@ WaitVBlank2:
     call UpdateCactus
     call DrawDuck
     call DrawCactus
+    call CheckCactusCollision
+    jp c, GameOver
     jp Main
+
+GameOver:
+    jr GameOver
 
 UpdateTick:
     ld a, [wScrollTick]
