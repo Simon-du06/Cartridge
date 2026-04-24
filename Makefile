@@ -12,7 +12,7 @@ INC_DIR         := include/
 
 # Explicit source list (add files here manually).
 SRC_FILES       := \
-	src/main.asm
+	src/breakout/main.asm
 
 OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
 OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
