@@ -1,16 +1,18 @@
-DEF DUCK_X            EQU 13
-DEF DUCK_START_Y      EQU 93
-DEF DUCK_MAX_Y        EQU 93
-DEF DUCK_OAM_X        EQU DUCK_X + 8
-DEF DUCK_JUMP_FORCE   EQU 4
-DEF GRAVITY			  EQU 1
-DEF GRAVITY_TICK_RATE EQU 4
+DEF DUCK_X              EQU 13
+DEF DUCK_START_Y        EQU 93
+DEF DUCK_MAX_Y          EQU 93
+DEF DUCK_OAM_X          EQU DUCK_X + 8
+DEF DUCK_JUMP_FORCE     EQU 4
+DEF GRAVITY             EQU 1
+DEF GRAVITY_TICK_RATE   EQU 4
+DEF DUCK_FOOT_TICK_MASK EQU %00001000
 
 SECTION "Duck State", WRAM0
 wDuckY: DB
 wDuckSpeed: DB
 wIsJumping: DB
 wDuckGravityTick: DB
+wDuckFootFrame: DB
 
 SECTION "Duck Logic", ROM0
 
@@ -22,6 +24,7 @@ InitDuck:
 	ld a, 0
 	ld [wIsJumping], a
 	ld [wDuckGravityTick], a
+	ld [wDuckFootFrame], a
 	call DrawDuck
 	ret
 
@@ -89,14 +92,49 @@ UpdateDuck:
 	ret
 
 
-; Draw duck as a 3x3 group of 8x8 OBJ sprites using a compact layout table.
+; Draw duck as a 3x3 group: two body rows ($0..$5) plus an animated feet row
+; in place of the original last row. The feet alternate $9,$A,$B / $C,$D,$E.
 DrawDuck:
+	; Tick the foot animation counter every frame.
+	ld a, [wDuckFootFrame]
+	inc a
+	ld [wDuckFootFrame], a
+
+	; Draw the two body rows (tiles $0..$5) into OAM slots 0..5.
 	ld a, [wDuckY]
 	add a, 16
-	ld c, DUCK_OAM_X
+	ld d, a
+	ld e, DUCK_OAM_X
 	ld b, 0
 	ld hl, STARTOF(OAM)
-	call Draw3x3Obj
+	call Draw3ObjRow
+
+	ld a, d
+	add a, 8
+	ld d, a
+	call Draw3ObjRow
+
+	; While airborne, freeze the feet on the static last-row tiles ($6,$7,$8).
+	ld a, [wIsJumping]
+	or a
+	jr z, .feetAnimated
+	ld b, $06
+	jr .drawFeetRow
+.feetAnimated
+	; Pick the feet tile base. DUCK_FOOT_TICK_MASK selects which counter bit
+	; gates the swap, controlling animation speed (higher bit = slower).
+	ld a, [wDuckFootFrame]
+	and DUCK_FOOT_TICK_MASK
+	jr z, .feetFrameA
+	ld b, $0C
+	jr .drawFeetRow
+.feetFrameA
+	ld b, $09
+.drawFeetRow
+	ld a, d
+	add a, 8
+	ld d, a
+	call Draw3ObjRow
 	ret
 
 ; Draw a 3x3 block of 8x8 OBJ sprites.

@@ -197,7 +197,7 @@ Tilemap:
 TilemapEnd:
 
 Duck:
-    INCBIN "../assets/duck.chr",  0, 192
+    INCBIN "../assets/duck.chr",  0, 240
 DuckEnd:
 
 Cactus:
