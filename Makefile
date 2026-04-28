@@ -15,7 +15,7 @@ SRC_FILES       := \
 	src/common.asm \
 	src/menu.asm \
 	src/tiles.asm \
-	src/main_dino.asm \
+	src/dino_game/main_dino.asm \
 	src/breakout/main.asm
 
 OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))

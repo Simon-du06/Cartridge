@@ -75,8 +75,44 @@ DinoMain:
     jp c, DinoGameOver
     jp DinoMain
 
+; Reuse the breakout death screen (TilemapMort) so a cactus hit kicks the
+; player back to the menu. Reloads the font tile set first because
+; TilemapMort references glyph tiles that don't live in DinoBgTiles.
 DinoGameOver:
-    jr DinoGameOver
+    call WaitVBlank
+    xor a
+    ld [rLCDC], a
+
+    ld de, BreakoutBgTiles
+    ld hl, $9000
+    ld bc, BreakoutBgTilesEnd - BreakoutBgTiles
+    call MemCopy
+
+    ld de, TilemapMort
+    ld hl, $9800
+    ld bc, TilemapMortEnd - TilemapMort
+    call MemCopy
+
+    ; Re-zero the BG scroll so the death screen isn't drawn shifted.
+    xor a
+    ld [rSCX], a
+    ld [rSCY], a
+
+    ld a, LCDC_ON | LCDC_BG_ON
+    ld [rLCDC], a
+    ld a, %11100100
+    ld [rBGP], a
+
+.checkSelect:
+    call WaitVBlank
+    call UpdateKeys
+    ld a, [wCurKeys]
+    and PAD_SELECT
+    jp nz, EntryPoint
+    ld a, [wCurKeys]
+    and PAD_START
+    jp nz, EntryPoint
+    jp .checkSelect
 
 SECTION "Dino WRAM", WRAM0
 wScrollTick: db
