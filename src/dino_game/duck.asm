@@ -44,6 +44,7 @@ UpdateDuck:
 	ld [wDuckGravityTick], a
 	ld a, DUCK_JUMP_FORCE
 	ld [wDuckSpeed], a
+	call PlayJumpBeep
 	jp .applyJump
 
 

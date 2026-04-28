@@ -38,6 +38,8 @@ EntryPointDino::
 
     call ClearOam
 
+    call InitAudio
+
     call InitDuck
     call InitCactus
 
