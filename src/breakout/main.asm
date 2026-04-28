@@ -103,6 +103,8 @@ ClearOam:
     dec b
     jr nz, .ClearBreakingList
 
+    call StartMenu
+
 Main:
     call WaitVBlank
     ; Add the ball's momentum to its position in OAM.
@@ -546,6 +548,106 @@ CheckStartGameOver:
 StartGameOver:
     jp EntryPoint
 
+StartMenu:
+    call WaitVBlank
+    ; Turn the LCD off
+    ld a, 0
+    ld [rLCDC], a
+    ld de, TilemapMenu
+    ld hl, $9800
+    ld bc, TilemapMenuEnd - TilemapMenu
+    call MemCopy
+    ; Turn the LCD on
+    ld a, LCDC_ON | LCDC_BG_ON
+    ld [rLCDC], a
+    ; During the first (blank) frame, initialize display registers
+    ld a, %11100100
+    ld [rBGP], a
+    ld a, 1
+    ld [wMenuState], a
+    ld a, $07
+    ld [wMenuCursorAddr], a
+    ld a, $99
+    ld [wMenuCursorAddr + 1], a
+.MenuLoop:
+    call WaitVBlank
+    call UpdateKeys
+    ld a, [wNewKeys]
+    and PAD_DOWN
+    jr z, .CheckUp
+    ld a, [wMenuState]
+    or a
+    jr z, .CheckUp
+    xor a
+    ld [wMenuState], a
+    call MoveMenuCursorDown
+.CheckUp:
+    ld a, [wNewKeys]
+    and PAD_UP
+    jr z, .CheckStart
+    ld a, [wMenuState]
+    or a
+    jr nz, .CheckStart
+    ld a, 1
+    ld [wMenuState], a
+    call MoveMenuCursorUp
+.CheckStart:
+    ld a, [wCurKeys]
+    and PAD_START
+    jp z, .MenuLoop
+    ld a, [wMenuState]
+    and a
+    jp nz, .MenuLoop
+.StartGame:
+    call WaitVBlank
+    ld a, 0
+    ld [rLCDC], a
+    ld de, Tilemap
+    ld hl, $9800
+    ld bc, TilemapEnd - Tilemap
+    call MemCopy
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
+    ld [rLCDC], a
+    ld a, %11100100
+    ld [rBGP], a
+    ld a, %11100100
+    ld [rOBP0], a
+    ret
+
+MoveMenuCursorDown:
+    ld a, [wMenuCursorAddr]
+    ld l, a
+    ld a, [wMenuCursorAddr + 1]
+    ld h, a
+    ld a, $0A
+    ld [hl], a
+    ld de, 32
+    add hl, de
+    ld a, $29
+    ld [hl], a
+    ld a, l
+    ld [wMenuCursorAddr], a
+    ld a, h
+    ld [wMenuCursorAddr + 1], a
+    ret
+
+MoveMenuCursorUp:
+    ld a, [wMenuCursorAddr]
+    ld l, a
+    ld a, [wMenuCursorAddr + 1]
+    ld h, a
+    ld a, $0A
+    ld [hl], a
+    ld de, $FFE0
+    add hl, de
+    ld a, $29
+    ld [hl], a
+    ld a, l
+    ld [wMenuCursorAddr], a
+    ld a, h
+    ld [wMenuCursorAddr + 1], a
+    ret
+
 Paddle:
     dw `13333331
     dw `30000003
@@ -972,6 +1074,58 @@ Tiles:
     dw `22222223
     dw `33333333
 
+    ; Tile $29 - Menu icon
+    dw `00000000
+    dw `00000300
+    dw `00000330
+    dw `33333333
+    dw `33333333
+    dw `22222332
+    dw `11111321
+    dw `00000210
+
+    ; Tile $2A - "B"
+    dw `01111100
+    dw `01100110
+    dw `01100110
+    dw `01111100
+    dw `01100110
+    dw `01100110
+    dw `01111100
+    dw `00000000
+
+    ; Tile $2B - "D"
+    dw `01111100
+    dw `01100110
+    dw `01100110
+    dw `01100110
+    dw `01100110
+    dw `01100110
+    dw `01111100
+    dw `00000000
+
+    ; Tile $2C - "I"
+    dw `01111110
+    dw `00011000
+    dw `00011000
+    dw `00011000
+    dw `00011000
+    dw `00011000
+    dw `01111110
+    dw `00000000
+
+    ; Tile $2D - "K"
+    dw `01100110
+    dw `01101100
+    dw `01111000
+    dw `01110000
+    dw `01111000
+    dw `01101100
+    dw `01100110
+    dw `00000000
+
+    
+
 TilesEnd:
 
 Tilemap:
@@ -994,6 +1148,27 @@ Tilemap:
 	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 	db $04, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 TilemapEnd:
+
+TilemapMenu:
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$16,$0C,$11,$14,$11,$2C,$2B,$0B,$0E,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$29,$2B,$2C,$17,$0F,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$2A,$11,$0E,$0C,$2D,$0F,$18,$14,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+TilemapMenuEnd:
 
 TilemapMort:
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
@@ -1023,6 +1198,10 @@ wFailedCatchBallCounter: db
 SECTION "Input Variables", WRAM0
 wCurKeys: db
 wNewKeys: db
+
+SECTION "Menu Variables", WRAM0
+wMenuState: db
+wMenuCursorAddr: dw
 
 SECTION "Ball Data", WRAM0
 wBallMomentumX: db
