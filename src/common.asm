@@ -58,32 +58,38 @@ DrawText::
     inc de
     jr .loop
 
-; Power on the APU and route every channel to both speakers at full volume.
-; Call once during boot before triggering any sound.
-InitAudio::
-    ld a, $80
-    ldh [rNR52], a       ; APU master power on
-    ld a, $FF
-    ldh [rNR51], a       ; CH1..4 -> both speakers
-    ld a, $77
-    ldh [rNR50], a       ; max volume left + right
+
+; Step BGP through a sequence of palette bytes, holding each one for H
+; vblanks. Used for fade-in/fade-out transitions: pre-set rBGP to the
+; "from" value yourself, then call this with the path toward the "to" value.
+;
+; @param de: pointer to a packed sequence of B BGP bytes (read in order)
+; @param b:  number of steps in the sequence
+; @param h:  vblanks to hold each step (higher = slower fade)
+FadeBgp::
+.next:
+    ld a, [de]
+    ldh [rBGP], a
+    inc de
+    ld c, h
+.wait:
+    call WaitVBlank
+    dec c
+    jr nz, .wait
+    dec b
+    jr nz, .next
     ret
 
-; Fire-and-forget jump blip on CH1 (square wave). Mirrors the chrome dino's
-; short ascending pluck: max-volume tone with a fast envelope decay so the
-; APU silences itself a few frames later -- no per-frame state needed.
-PlayJumpBeep::
-    xor a
-    ldh [rNR10], a       ; no frequency sweep
-    ld a, $80
-    ldh [rNR11], a       ; 50% duty, length disabled
-    ld a, $F1
-    ldh [rNR12], a       ; envelope: full volume, decreasing, fast decay
-    ld a, LOW(1750)
-    ldh [rNR13], a
-    ld a, HIGH(1750) | $80
-    ldh [rNR14], a       ; trigger (bit 7) + frequency high bits
-    ret
+; --- Pre-baked fade tables --------------------------------------------------
+; Each step lightens or darkens every palette slot by one DMG color level,
+; so the perceived motion is a smooth crossfade.
+;
+; Menu / breakout normal BGP is $E4 (identity). Path: $E4 -> $F9 -> $FE -> $FF.
+; Dino normal BGP is $1B (inverted).            Path: $1B -> $6F -> $BF -> $FF.
+
+FadeBgpMenuOut::    db $F9, $FE, $FF
+FadeBgpBreakoutIn:: db $FE, $F9, $E4
+FadeBgpDinoIn::     db $BF, $6F, $1B
 
 ; Read controller and update wCurKeys / wNewKeys (rising-edge mask).
 UpdateKeys::

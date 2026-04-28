@@ -84,6 +84,13 @@ EntryPoint::
     jp z, .MenuLoop
 
 .LaunchSelection:
+    ; Fade the menu out to black before swapping tilesets so the LCD-off
+    ; flash is hidden and the transition feels intentional.
+    ld de, FadeBgpMenuOut
+    ld b, 3
+    ld h, 6
+    call FadeBgp
+
     ld a, [wMenuSelection]
     or a
     jp z, EntryPointDino

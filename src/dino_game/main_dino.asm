@@ -38,18 +38,16 @@ EntryPointDino::
 
     call ClearOam
 
-    call InitAudio
-
     call InitDuck
     call InitCactus
 
-    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
-    ld [rLCDC], a
-
-    ld a, %00011011
+    ; LCD comes back on with BG only and the palette pinned to all-black so
+    ; the player doesn't see the fresh tilemap pop in. OBJs stay off until
+    ; the fade completes so the duck/cactus appear *after* the world fades up.
+    ld a, $FF
     ld [rBGP], a
-    ld a, %11011000
-    ld [rOBP0], a
+    ld a, LCDC_ON | LCDC_BG_ON
+    ld [rLCDC], a
 
     xor a
     ld [wFrameCounter], a
@@ -58,6 +56,17 @@ EntryPointDino::
 
     ld a, 2
     ld [wScrollTick], a
+
+    ; Fade the BG up to the dino palette, then enable sprites.
+    ld de, FadeBgpDinoIn
+    ld b, 3
+    ld h, 6
+    call FadeBgp
+
+    ld a, %11011000
+    ld [rOBP0], a
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
+    ld [rLCDC], a
 
 DinoMain:
     call WaitVBlank
@@ -77,7 +86,7 @@ DinoMain:
     jp c, DinoGameOver
     jp DinoMain
 
-; Reuse the breakout death screen (TilemapMort) so a cactus hit kicks the
+; Reuse the breakout death screen (TilemapMort) sound a cactus hit kicks the
 ; player back to the menu. Reloads the font tile set first because
 ; TilemapMort references glyph tiles that don't live in DinoBgTiles.
 DinoGameOver:
@@ -110,10 +119,10 @@ DinoGameOver:
     call UpdateKeys
     ld a, [wCurKeys]
     and PAD_SELECT
-    jp nz, EntryPoint
+    jp nz, EntryPoint              ; SELECT -> back to the game-selection menu
     ld a, [wCurKeys]
     and PAD_START
-    jp nz, EntryPoint
+    jp nz, EntryPointDino          ; START  -> restart dino
     jp .checkSelect
 
 SECTION "Dino WRAM", WRAM0

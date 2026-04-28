@@ -72,13 +72,12 @@ EntryPointBreakout::
     ld a, -1
     ld [wBallMomentumY], a
 
-    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
-    ld [rLCDC], a
-
-    ld a, %11100100
+    ; LCD on with BG only and palette pinned to all-black -- the playfield
+    ; will fade up below, then OBJs (paddle + ball) get enabled afterwards.
+    ld a, $FF
     ld [rBGP], a
-    ld a, %11100100
-    ld [rOBP0], a
+    ld a, LCDC_ON | LCDC_BG_ON
+    ld [rLCDC], a
 
     xor a
     ld [wFrameCounter], a
@@ -94,6 +93,17 @@ EntryPointBreakout::
     ld [hli], a
     dec b
     jr nz, .ClearBreakingList
+
+    ; Fade the playfield up, then bring sprites in.
+    ld de, FadeBgpBreakoutIn
+    ld b, 3
+    ld h, 6
+    call FadeBgp
+
+    ld a, %11100100
+    ld [rOBP0], a
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
+    ld [rLCDC], a
 
 BreakoutMain:
     call WaitVBlank
@@ -440,15 +450,11 @@ CheckSelectGameOver:
     call UpdateKeys
     ld a, [wCurKeys]
     and PAD_SELECT
-    jp z, CheckStartGameOver
-SelectGameOver:
-    jp EntryPoint
-CheckStartGameOver:
+    jp nz, EntryPoint              ; SELECT -> back to the game-selection menu
     ld a, [wCurKeys]
     and PAD_START
-    jp z, CheckSelectGameOver
-StartGameOver:
-    jp EntryPoint
+    jp nz, EntryPointBreakout      ; START  -> restart breakout
+    jp CheckSelectGameOver
 
 SECTION "Breakout WRAM", WRAM0
 wFailedCatchBallCounter: db
