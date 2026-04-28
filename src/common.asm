@@ -39,6 +39,25 @@ ClearOam::
     jp nz, .loop
     ret
 
+; Copy a $FF-terminated tile-index string to the BG tilemap (or anywhere).
+; Strings are produced by `db "..."` in source files that include
+; src/text.inc -- the CHARMAP there translates each ASCII byte to the
+; matching font tile index, so the assembled bytes are already what we
+; want to push into VRAM.
+;
+; Must be called during VBlank if hl points into VRAM ($8000..$9FFF).
+;
+; @param de: pointer to the $FF-terminated string
+; @param hl: destination pointer (e.g. $9800 + col + row*32)
+DrawText::
+.loop:
+    ld a, [de]
+    cp $FF
+    ret z
+    ld [hli], a
+    inc de
+    jr .loop
+
 ; Read controller and update wCurKeys / wNewKeys (rising-edge mask).
 UpdateKeys::
     ld a, JOYP_GET_BUTTONS
