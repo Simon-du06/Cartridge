@@ -76,7 +76,7 @@ CheckCactusCollision:
 	scf
 	ret
 
-; Draw a 3x3 block of 8x8 OBJ sprites.
+; Draw a 4*16 block of 8x8 OBJ sprites.
 ; @param a: top-left Y (OAM space)
 ; @param c: top-left X (OAM space)
 ; @param b: first tile index (uses b..b+8)
@@ -102,7 +102,7 @@ Draw4x2Obj:
 	call Draw2ObjRow
 	ret
 
-; Draw one row of 3 OBJ sprites at Y=d, starting X=e.
+; Draw one row of 2 OBJ sprites at Y=d, starting X=e.
 ; @param d: row Y (OAM space)
 ; @param e: row start X (OAM space)
 ; @param b: next tile index (incremented by 3)
