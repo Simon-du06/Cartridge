@@ -3,7 +3,7 @@ ASM             := rgbasm
 LINKER          := rgblink
 FIX             := rgbfix
 
-PROJECT_NAME    := breakout_game
+PROJECT_NAME    := cartridge
 BUILD_DIR       := build
 OBJ_DIR         := $(BUILD_DIR)/obj
 OUTPUT          := $(BUILD_DIR)/$(PROJECT_NAME)
@@ -12,6 +12,10 @@ INC_DIR         := include/
 
 # Explicit source list (add files here manually).
 SRC_FILES       := \
+	src/common.asm \
+	src/menu.asm \
+	src/tiles.asm \
+	src/main_dino.asm \
 	src/breakout/main.asm
 
 OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
