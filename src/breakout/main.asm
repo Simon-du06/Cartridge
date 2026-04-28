@@ -2,6 +2,12 @@ INCLUDE "hardware.inc"
 
 DEF BRICK_LEFT EQU $05
 DEF BRICK_RIGHT EQU $06
+DEF BRICK_LEFT_CRACKED EQU $23
+DEF BRICK_RIGHT_CRACKED EQU $24
+DEF BRICK_LEFT_BROKEN EQU $25
+DEF BRICK_RIGHT_BROKEN EQU $26
+DEF BRICK_LEFT_VERY_BROKEN EQU $27
+DEF BRICK_RIGHT_VERY_BROKEN EQU $28
 DEF BLANK_TILE EQU $08
 
 SECTION "Header", ROM0[$100]
@@ -88,7 +94,14 @@ ClearOam:
     ld [wCurKeys], a
     ld [wNewKeys], a
     ld [wFailedCatchBallCounter], a
-
+    ld [wBlockBreakingID], a
+    ld [wBlockBreakingID + 1], a
+    ld hl, BreakingList
+    ld b, 16
+.ClearBreakingList:
+    ld [hli], a
+    dec b
+    jr nz, .ClearBreakingList
 
 Main:
     call WaitVBlank
@@ -98,12 +111,22 @@ Main:
     ld a, [STARTOF(OAM) + 5]
     add a, b
     ld [STARTOF(OAM) + 5], a
-
+    ; Frame counter: call UpdateBreakingList every 4 frames
+    ld a, [wFrameCounter]
+    inc a
+    ld [wFrameCounter], a
+    cp 4
+    jr nz, .SkipAnimationForBrick
+    call UpdateBreakingList
+    ld a, 0
+    ld [wFrameCounter], a
+.SkipAnimationForBrick:
     ld a, [wBallMomentumY]
     ld b, a
     ld a, [STARTOF(OAM) + 4]
     add a, b
     ld [STARTOF(OAM) + 4], a
+
 BounceOnTop:
     ; Remember to offset the OAM position!
     ; (8, 16) in OAM coordinates is (0, 0) on the screen.
@@ -247,21 +270,129 @@ MemCopy:
     jp nz, MemCopy
     ret
 
+; @return a = the tile
 CheckAndHandleBrick:
-    ld a, [hl]
     cp a, BRICK_LEFT
     jr nz, CheckAndHandleBrickRight
     ; Break a brick from the left side.
-    ld [hl], BLANK_TILE
+    ; hl contient l'adresse du bloc cassé
+    ; Mark both tiles cracked and register animation entry
+    ld [hl], BRICK_LEFT_CRACKED
     inc hl
-    ld [hl], BLANK_TILE
+    ld [hl], BRICK_RIGHT_CRACKED
+    dec hl
+    call AddBreakingEntry
+    ld a, [hl]
+    ret
 CheckAndHandleBrickRight:
     cp a, BRICK_RIGHT
     ret nz
     ; Break a brick from the right side.
+    ld [hl], BRICK_RIGHT_CRACKED
+    dec hl
+    ld [hl], BRICK_LEFT_CRACKED
+    ; hl contient l'adresse du bloc cassé (left tile)
+    call AddBreakingEntry
+    ld a, [hl]
+    ret
+
+    ; --- Breaking list implementation ---
+    ; NUM_BREAK_SLOTS = 8 (2 bytes per slot: low,high)
+
+AddBreakingEntry:
+    ; HL = address of left tile for the broken brick
+    ld de, BreakingList
+    ld c, 8
+.FindSlot:
+    ld a, [de]
+    ld b, a
+    inc de
+    ld a, [de]
+    or b
+    dec de
+    jr nz, .Occupied
+    ; free slot found at DE
+    ld a, h
+    ld [de], a
+    inc de
+    ld a, l
+    ld [de], a
+    dec de
+    ret
+.Occupied:
+    inc de
+    inc de
+    dec c
+    jr nz, .FindSlot
+    ret
+
+UpdateBreakingList:
+    ld de, BreakingList
+    ld c, 8
+.SlotLoop:
+    ld a, [de]
+    ld b, a
+    inc de
+    ld a, [de]
+    or b
+    dec de
+    jr z, .NextSlot
+    ; load HL from slot (left tile address)
+    ld a, [de]
+    ld h, a
+    inc de
+    ld a, [de]
+    ld l, a
+    dec de
+    ; check if the tile is still cracked
+    ld a, [hl]
+    cp BRICK_LEFT_CRACKED
+    jr z, .DoPutBroken
+    cp BRICK_LEFT_BROKEN
+    jr z, .DoPutVeryBroken
+    cp BRICK_LEFT_VERY_BROKEN
+    jr z, .DoPutBlank
+    jr .NextSlot
+.DoPutBroken:
+    call PutBrokenAtHL
+    jr .NextSlot
+.DoPutVeryBroken:
+    call PutVeryBrokenAtHL
+    jr .NextSlot
+.DoPutBlank:
+    call PutBlankAtHL
+    ; clear this slot
+    ld a, 0
+    ld [de], a
+    inc de
+    ld [de], a
+    dec de
+.NextSlot:
+    inc de
+    inc de
+    dec c
+    jr nz, .SlotLoop
+    ret
+
+PutBrokenAtHL:
+    ld [hl], BRICK_LEFT_BROKEN
+    inc hl
+    ld [hl], BRICK_RIGHT_BROKEN
+    dec hl
+    ret
+
+PutVeryBrokenAtHL:
+    ld [hl], BRICK_LEFT_VERY_BROKEN
+    inc hl
+    ld [hl], BRICK_RIGHT_VERY_BROKEN
+    dec hl
+    ret
+
+PutBlankAtHL:
+    ld [hl], BLANK_TILE
+    inc hl
     ld [hl], BLANK_TILE
     dec hl
-    ld [hl], BLANK_TILE
     ret
 
 UpdateKeys:
@@ -347,6 +478,18 @@ IsWallTile:
     cp a, $06
     ret z
     cp a, $07
+    ret z
+    cp a, BRICK_LEFT_BROKEN
+    ret z
+    cp a, BRICK_LEFT_CRACKED
+    ret z
+    cp a, BRICK_LEFT_VERY_BROKEN
+    ret z
+    cp a, BRICK_RIGHT_BROKEN
+    ret z
+    cp a, BRICK_RIGHT_CRACKED
+    ret z
+    cp a, BRICK_RIGHT_VERY_BROKEN
     ret
 
 ; @return z: if the wall touch is bellow the objbar
@@ -361,7 +504,6 @@ IsWallBellowBarObj:
     jp IncrementAndCheckNotLoose
 NotGreater:
     ret
-
 IncrementAndCheckNotLoose:
     ld a, [wFailedCatchBallCounter]
     inc a
@@ -672,6 +814,164 @@ Tiles:
     dw `00111100
     dw `00000000
 
+        ; digits
+    ; 0 $19
+    dw `33333333
+    dw `33000033
+    dw `30033003
+    dw `30033003
+    dw `30033003
+    dw `30033003
+    dw `33000033
+    dw `33333333
+    ; 1 $1A
+    dw `33333333
+    dw `33300333
+    dw `33000333
+    dw `33300333
+    dw `33300333
+    dw `33300333
+    dw `33000033
+    dw `33333333
+    ; 2 $1B
+    dw `33333333
+    dw `33000033
+    dw `30330003
+    dw `33330003
+    dw `33000333
+    dw `30003333
+    dw `30000003
+    dw `33333333
+    ; 3 $1C
+    dw `33333333
+    dw `30000033
+    dw `33330003
+    dw `33000033
+    dw `33330003
+    dw `33330003
+    dw `30000033
+    dw `33333333
+    ; 4 $1D
+    dw `33333333
+    dw `33000033
+    dw `30030033
+    dw `30330033
+    dw `30330033
+    dw `30000003
+    dw `33330033
+    dw `33333333
+    ; 5 $1E
+    dw `33333333
+    dw `30000033
+    dw `30033333
+    dw `30000033
+    dw `33330003
+    dw `30330003
+    dw `33000033
+    dw `33333333
+    ; 6 $1F
+    dw `33333333
+    dw `33000033
+    dw `30033333
+    dw `30000033
+    dw `30033003
+    dw `30033003
+    dw `33000033
+    dw `33333333
+    ; 7 $20
+    dw `33333333
+    dw `30000003
+    dw `33333003
+    dw `33330033
+    dw `33300333
+    dw `33000333
+    dw `33000333
+    dw `33333333
+    ; 8 $21
+    dw `33333333
+    dw `33000033
+    dw `30333003
+    dw `33000033
+    dw `30333003
+    dw `30333003
+    dw `33000033
+    dw `33333333
+    ; 9 $22
+    dw `33333333
+    dw `33000033
+    dw `30330003
+    dw `30330003
+    dw `33000003
+    dw `33330003
+    dw `33000033
+    dw `33333333
+
+    ; Tile gauche fissuré
+    ; $23
+    dw `22222222
+    dw `20000000
+    dw `20111111
+    dw `20111011
+    dw `20110111
+    dw `20111111
+    dw `22222222
+    dw `33333333
+
+    ; Tile droite fissuré
+    ; $24
+    dw `22222223
+    dw `00000023
+    dw `11111123
+    dw `11011123
+    dw `11101123
+    dw `11111123
+    dw `22222223
+    dw `33333333
+
+    ; Tile gauche cassé
+    ; $25
+    dw `22222222
+    dw `20000000
+    dw `20111011
+    dw `20110001
+    dw `20100111
+    dw `20111011
+    dw `22222222
+    dw `33333333
+
+    ; Tile droite cassé
+    ; $26
+    dw `22222223
+    dw `00000023
+    dw `11011123
+    dw `10001123
+    dw `11101123
+    dw `11011123
+    dw `22222223
+    dw `33333333
+
+    ; Tile gauche très cassé
+    ; $27
+    dw `22222222
+    dw `20000000
+    dw `20101011
+    dw `20010001
+    dw `20100010
+    dw `20011011
+    dw `22222222
+    dw `33333333
+
+    ; Tile droite très cassé
+    ; $28
+    dw `22222223
+    dw `00000023
+    dw `11010123
+    dw `10001023
+    dw `01000123
+    dw `11010123
+    dw `22222223
+    dw `33333333
+
 TilesEnd:
 
 Tilemap:
@@ -688,10 +988,10 @@ Tilemap:
 	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
-	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $0A, $0B, $0C, $0D, $03, 0,0,0,0,0,0,0,0,0,0,0,0
-	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $0E, $0F, $10, $11, $03, 0,0,0,0,0,0,0,0,0,0,0,0
-	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $12, $13, $14, $15, $03, 0,0,0,0,0,0,0,0,0,0,0,0
-	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $16, $17, $18, $19, $03, 0,0,0,0,0,0,0,0,0,0,0,0
+	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
+	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
+	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
+	db $04, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 	db $04, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $09, $07, $03, $03, $03, $03, $03, $03, 0,0,0,0,0,0,0,0,0,0,0,0
 TilemapEnd:
 
@@ -703,9 +1003,9 @@ TilemapMort:
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
-    db $0A,$0A,$0A,$0A,$0A,$0A,$0B,$0C,$0D,$0E,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0B,$0C,$0D,$0E,$0A,$0F,$10,$0E,$11,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
-    db $0A,$0A,$0A,$0A,$0A,$0A,$0F,$10,$0E,$11,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
+    db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
     db $0A,$0A,$0A,$12,$11,$0E,$13,$13,$0A,$13,$14,$0C,$11,$14,$0A,$14,$0F,$0A,$0A,$0A,0,0,0,0,0,0,0,0,0,0,0,0
@@ -727,3 +1027,8 @@ wNewKeys: db
 SECTION "Ball Data", WRAM0
 wBallMomentumX: db
 wBallMomentumY: db
+
+SECTION "AnimationBlockBreaking", WRAM0
+wBlockBreakingID: dw
+; BreakingList: up to 8 concurrent breaking animations (each slot = 2 bytes address)
+BreakingList: ds 16
