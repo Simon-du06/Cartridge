@@ -9,6 +9,9 @@ DEF BRICK_RIGHT_BROKEN     EQU $26
 DEF BRICK_LEFT_VERY_BROKEN EQU $27
 DEF BRICK_RIGHT_VERY_BROKEN EQU $28
 DEF BLANK_TILE             EQU $08
+DEF BOTTOM_RAIL_TILE       EQU $09
+DEF BOMB_TILE              EQU $2E
+DEF BOMB_SPAWN_BREAKS       EQU 4
 
 SECTION "Breakout Game Code", ROM0
 
@@ -86,6 +89,12 @@ EntryPointBreakout::
     ld [wFailedCatchBallCounter], a
     ld [wBlockBreakingID], a
     ld [wBlockBreakingID + 1], a
+    ld [wBreakCounter], a
+    ld [wBombActive], a
+    ld [wBombTileAddr], a
+    ld [wBombTileAddr + 1], a
+    ld [wLastBrickAddr], a
+    ld [wLastBrickAddr + 1], a
 
     ld hl, BreakingList
     ld b, 16
@@ -145,6 +154,7 @@ BounceOnTop:
     call CheckAndHandleBrick
     call IsWallTile
     jp nz, BounceOnRight
+.OKBounce:
     ld a, 1
     ld [wBallMomentumY], a
 
@@ -155,11 +165,13 @@ BounceOnRight:
     ld a, [STARTOF(OAM) + 5]
     sub a, 8 - 1
     ld b, a
+
     call GetTileByPixel
     ld a, [hl]
     call CheckAndHandleBrick
     call IsWallTile
     jp nz, BounceOnLeft
+.OKBounce:
     ld a, -1
     ld [wBallMomentumX], a
 
@@ -170,11 +182,13 @@ BounceOnLeft:
     ld a, [STARTOF(OAM) + 5]
     sub a, 8 + 1
     ld b, a
+
     call GetTileByPixel
     ld a, [hl]
     call CheckAndHandleBrick
     call IsWallTile
     jp nz, BounceOnBottom
+.OKBounce:
     ld a, 1
     ld [wBallMomentumX], a
 
@@ -185,14 +199,21 @@ BounceOnBottom:
     ld a, [STARTOF(OAM) + 5]
     sub a, 8
     ld b, a
+
     call GetTileByPixel
     ld a, [hl]
     call CheckAndHandleBrick
+    ld b, a
     call IsWallTile
     jp nz, BounceDone
+.OKBounce:
+    ld a, b
+    cp a, BOTTOM_RAIL_TILE
+    jr nz, .SkipMissCheck
+    call IsWallBellowBarObj
+.SkipMissCheck:
     ld a, -1
     ld [wBallMomentumY], a
-    call IsWallBellowBarObj
 
 BounceDone:
     ; Paddle bounce check (Y match then X overlap).
@@ -244,13 +265,19 @@ Right:
 
 ; @return a = the tile (preserves it for the caller after the side effects)
 CheckAndHandleBrick:
+    cp a, BOMB_TILE
+    jr nz, .CheckLeft
+    call TriggerBombExplosion
+    ld a, BOMB_TILE
+    ret
+.CheckLeft:
     cp a, BRICK_LEFT
     jr nz, CheckAndHandleBrickRight
     ld [hl], BRICK_LEFT_CRACKED
     inc hl
     ld [hl], BRICK_RIGHT_CRACKED
     dec hl
-    call AddBreakingEntry
+    call AddBreakingEntryAndCount
     ld a, [hl]
     ret
 CheckAndHandleBrickRight:
@@ -259,11 +286,181 @@ CheckAndHandleBrickRight:
     ld [hl], BRICK_RIGHT_CRACKED
     dec hl
     ld [hl], BRICK_LEFT_CRACKED
-    call AddBreakingEntry
+    call AddBreakingEntryAndCount
     ld a, [hl]
     ret
 
 ; --- Break-animation list (8 slots, 2 bytes per slot = left tile address) -
+AddBreakingEntryAndCount:
+    call RecordLastBrickAndMaybeSpawnBomb
+    jp AddBreakingEntry
+
+RecordLastBrickAndMaybeSpawnBomb:
+    ld a, l
+    ld [wLastBrickAddr], a
+    ld a, h
+    ld [wLastBrickAddr + 1], a
+
+    ld a, [wBombActive]
+    cp 1
+    jr z, .Done
+
+    ld a, [wBreakCounter]
+    inc a
+    ld [wBreakCounter], a
+    cp BOMB_SPAWN_BREAKS
+    jr nz, .Done
+    xor a
+    ld [wBreakCounter], a
+    call SpawnBombAtLastBrick
+.Done:
+    ret
+
+SpawnBombAtLastBrick:
+    ld a, [wLastBrickAddr]
+    ld l, a
+    ld a, [wLastBrickAddr + 1]
+    ld h, a
+
+    ld a, BOMB_TILE
+    ld [hl], a
+    inc hl
+    ld a, BLANK_TILE
+    ld [hl], a
+    dec hl
+
+    ld a, l
+    ld [wBombTileAddr], a
+    ld a, h
+    ld [wBombTileAddr + 1], a
+    ld a, 1
+    ld [wBombActive], a
+    ret
+
+TriggerBombExplosion:
+    ld a, [wBombActive]
+    cp 1
+    jp nz, .Done
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+
+    ld a, BLANK_TILE
+    ld [hl], a
+    inc hl
+    ld [hl], a
+    dec hl
+
+    xor a
+    ld [wBombActive], a
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $FFDF
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $FFE0
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $FFE1
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $FFFF
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $0001
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $001F
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $0020
+    add hl, bc
+    call HandleBombNeighborAtHL
+
+    ld a, [wBombTileAddr]
+    ld l, a
+    ld a, [wBombTileAddr + 1]
+    ld h, a
+    ld bc, $0021
+    add hl, bc
+    call HandleBombNeighborAtHL
+.Done:
+    ret
+
+HandleBombNeighborAtHL:
+    ld a, [hl]
+    cp a, BRICK_LEFT
+    jr nz, .CheckRight
+    ld [hl], BRICK_LEFT_CRACKED
+    inc hl
+    ld [hl], BRICK_RIGHT_CRACKED
+    dec hl
+    call AddBreakingEntry
+    ret
+.CheckRight:
+    cp a, BRICK_RIGHT
+    jr nz, .CheckCrackedLeft
+    ld [hl], BRICK_RIGHT_CRACKED
+    dec hl
+    ld [hl], BRICK_LEFT_CRACKED
+    call AddBreakingEntry
+    ret
+.CheckCrackedLeft:
+    cp a, BRICK_LEFT_CRACKED
+    jr z, .AddLeft
+    cp a, BRICK_LEFT_BROKEN
+    jr z, .AddLeft
+    cp a, BRICK_LEFT_VERY_BROKEN
+    jr z, .AddLeft
+    cp a, BRICK_RIGHT_CRACKED
+    jr z, .AddRight
+    cp a, BRICK_RIGHT_BROKEN
+    jr z, .AddRight
+    cp a, BRICK_RIGHT_VERY_BROKEN
+    jr z, .AddRight
+    ret
+.AddLeft:
+    call AddBreakingEntry
+    ret
+.AddRight:
+    dec hl
+    call AddBreakingEntry
+    ret
 
 AddBreakingEntry:
     ld de, BreakingList
@@ -314,6 +511,8 @@ UpdateBreakingList:
     jr z, .DoPutVeryBroken
     cp BRICK_LEFT_VERY_BROKEN
     jr z, .DoPutBlank
+    cp BLANK_TILE
+    jr z, .DoPutBlank
     jr .NextSlot
 .DoPutBroken:
     call PutBrokenAtHL
@@ -356,6 +555,7 @@ PutBlankAtHL:
     dec hl
     ret
 
+
 ; Convert a pixel position to a $9800-relative tilemap address.
 ; @param b: pixel X
 ; @param c: pixel Y
@@ -383,7 +583,7 @@ GetTileByPixel:
 ; @param a: tile id
 ; @return z: set if a is a wall (or any breakable brick state)
 IsWallTile:
-    cp a, $00
+    cp a, $09
     ret z
     cp a, $01
     ret z
@@ -396,6 +596,8 @@ IsWallTile:
     cp a, $06
     ret z
     cp a, $07
+    ret z
+    cp a, BOMB_TILE
     ret z
     cp a, BRICK_LEFT_BROKEN
     ret z
@@ -412,13 +614,9 @@ IsWallTile:
 
 ; If the bottom-bounce wall is *below* the paddle, the player missed the ball.
 IsWallBellowBarObj:
-    ld a, [STARTOF(OAM)]
-    ld b, a
-    ld a, [STARTOF(OAM) + 4]
-    cp b
-    jr z, .notGreater
-    jr c, .notGreater
-    jp IncrementAndCheckNotLoose
+    cp a, $09
+    jp z, IncrementAndCheckNotLoose
+    ret 
 .notGreater:
     ret
 
@@ -462,3 +660,7 @@ wBallMomentumX:          db
 wBallMomentumY:          db
 wBlockBreakingID:        dw
 BreakingList:            ds 16
+wBreakCounter:           db
+wBombActive:             db
+wBombTileAddr:           dw
+wLastBrickAddr:          dw
