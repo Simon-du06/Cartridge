@@ -54,8 +54,21 @@ EntryPointDino::
     ld [wCurKeys], a
     ld [wNewKeys], a
 
-    ld a, 2
-    ld [wScrollTick], a
+    ld [wScrollSkyX], a
+    ld [wScrollGroundX], a
+
+    ; Configure STAT_LYC to monitor line 93 (sky/ground boundary)
+    ld a, 93
+    ld [rLYC], a
+    ld a, STAT_LYC
+    ld [rSTAT], a
+
+    ; Enable STAT interrupt
+    ld a, [rIE]
+    or a, IE_STAT
+    ld [rIE], a
+
+    ei  ; Enable global interrupts
 
     ; Fade the BG up to the dino palette, then enable sprites.
     ld de, FadeBgpDinoIn
@@ -71,11 +84,16 @@ EntryPointDino::
 DinoMain:
     call WaitVBlank
 
-    ; Scroll the BG horizontally.
-    ld a, [rSCX]
-    ld hl, wScrollTick
-    add a, [hl]
+    ; Sky scroll (+1) - Appears at the top of the frame
+    ld a, [wScrollSkyX]
+    inc a
+    ld [wScrollSkyX], a
     ld [rSCX], a
+
+    ; Ground scroll (+3) - Handled mid-frame by STAT interrupt
+    ld a, [wScrollGroundX]
+    add a, 3
+    ld [wScrollGroundX], a
 
     call UpdateKeys
     call UpdateDuck
@@ -90,6 +108,12 @@ DinoMain:
 ; player back to the menu. Reloads the font tile set first because
 ; TilemapMort references glyph tiles that don't live in DinoBgTiles.
 DinoGameOver:
+    ; Disable STAT interrupt so parallax doesn't affect death screen
+    di
+    ld a, [rIE]
+    and a, ~IE_STAT
+    ld [rIE], a
+
     call WaitVBlank
     xor a
     ld [rLCDC], a
@@ -126,4 +150,25 @@ DinoGameOver:
     jp .checkSelect
 
 SECTION "Dino WRAM", WRAM0
-wScrollTick: db
+wScrollSkyX:    db
+wScrollGroundX: db
+
+SECTION "Stat Handler", ROM0[$0048]
+StatHandler::
+    push af
+    push hl
+
+    ; Check if it's an LYC interrupt
+    ld a, [rSTAT]
+    and a, STAT_LYCF
+    jp z, .exit
+
+    ; Apply ground scroll position for the bottom half of the screen
+    ld hl, wScrollGroundX
+    ld a, [hl]
+    ldh [rSCX], a
+
+.exit:
+    pop hl
+    pop af
+    reti
