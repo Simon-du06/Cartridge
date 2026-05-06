@@ -128,3 +128,34 @@ SECTION "Common WRAM", WRAM0
 wFrameCounter:: db
 wCurKeys::      db
 wNewKeys::      db
+
+SECTION "OAM Buffer", WRAM0[$C000]
+wOAMBuffer:: ds 160
+
+SECTION "OAM DMA", ROM0
+
+; DMA transfer routine that gets copied to HRAM
+DmaRoutine::
+    ldh [rDMA], a
+    ld a, 40
+.loop:
+    dec a
+    jr nz, .loop
+    ret
+DmaRoutineEnd::
+
+; Copies the DMA routine to HRAM
+InitDma::
+    ld hl, DmaRoutine
+    ld c, LOW(hOamDma)
+    ld b, DmaRoutineEnd - DmaRoutine
+.copy:
+    ld a, [hli]
+    ldh [c], a
+    inc c
+    dec b
+    jr nz, .copy
+    ret
+
+SECTION "OAM DMA HRAM", HRAM
+hOamDma:: ds DmaRoutineEnd - DmaRoutine

@@ -1,6 +1,7 @@
 INCLUDE "hardware.inc"
 INCLUDE "src/dino_game/duck.asm"
 INCLUDE "src/dino_game/cactus.asm"
+INCLUDE "src/dino_game/bird.asm"
 
 SECTION "Dino Game Code", ROM0
 
@@ -36,10 +37,19 @@ EntryPointDino::
     ld bc, CactusTilesEnd - CactusTiles
     call MemCopy
 
+    ; Bird OBJ tiles
+    ld de, BirdTiles
+    ld hl, BIRD_VRAM_ADDR
+    ld bc, BirdTilesEnd - BirdTiles
+    call MemCopy
+
     call ClearOam
+
+    call InitDma
 
     call InitDuck
     call InitCactus
+    call InitBird
 
     ; LCD comes back on with BG only and the palette pinned to all-black so
     ; the player doesn't see the fresh tilemap pop in. OBJs stay off until
@@ -84,6 +94,10 @@ EntryPointDino::
 DinoMain:
     call WaitVBlank
 
+    ; Apply OAM DMA transfer from wOAMBuffer safely
+    ld a, HIGH(wOAMBuffer)
+    call hOamDma
+
     ; Sky scroll (+1) - Appears at the top of the frame
     ld a, [wScrollSkyX]
     inc a
@@ -98,9 +112,13 @@ DinoMain:
     call UpdateKeys
     call UpdateDuck
     call UpdateCactus
+    call UpdateBird
     call DrawDuck
     call DrawCactus
+    call DrawBird
     call CheckCactusCollision
+    jp c, DinoGameOver
+    call CheckBirdCollision
     jp c, DinoGameOver
     jp DinoMain
 
