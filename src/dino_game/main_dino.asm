@@ -1,4 +1,5 @@
 INCLUDE "hardware.inc"
+INCLUDE "src/dino_game/speed.asm"
 INCLUDE "src/dino_game/duck.asm"
 INCLUDE "src/dino_game/cactus.asm"
 INCLUDE "src/dino_game/bird.asm"
@@ -50,6 +51,7 @@ EntryPointDino::
     call InitDuck
     call InitCactus
     call InitBird
+    call InitSpeedSystem
 
     ; LCD comes back on with BG only and the palette pinned to all-black so
     ; the player doesn't see the fresh tilemap pop in. OBJs stay off until
@@ -97,16 +99,21 @@ DinoMain:
     ; Apply OAM DMA transfer from wOAMBuffer safely
     ld a, HIGH(wOAMBuffer)
     call hOamDma
+    
+    ; We need to call IncreaseSpeed once per frame
+    call IncreaseSpeed
 
-    ; Sky scroll (+1) - Appears at the top of the frame
+    ; Sky scroll (slower)
     ld a, [wScrollSkyX]
-    inc a
+    add a, 1
     ld [wScrollSkyX], a
     ld [rSCX], a
 
-    ; Ground scroll (+3) - Handled mid-frame by STAT interrupt
+    ; Ground scroll (dynamical based on UpdateScroll)
+    call UpdateScroll ; Sets wCurrentFrameSpeed
     ld a, [wScrollGroundX]
-    add a, 3
+    ld hl, wCurrentFrameSpeed
+    add a, [hl]
     ld [wScrollGroundX], a
 
     call UpdateKeys

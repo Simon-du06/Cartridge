@@ -5,7 +5,7 @@ DEF BIRD_TILE_BASE EQU (BIRD_VRAM_ADDR - $8000) / 16
 DEF BIRD_OAM_ADDR  EQU $C000 + (17 * 4)
 DEF BIRD_HITBOX_X  EQU 16
 DEF BIRD_HITBOX_Y  EQU 16
-DEF BIRD_HITBOX_W  EQU 4
+DEF BIRD_HITBOX_W  EQU 8
 DEF BIRD_HITBOX_H  EQU 12
 
 SECTION "Bird State", WRAM0
@@ -21,7 +21,8 @@ InitBird:
 UpdateBird:
     ; The bird sits on the ground, so it scrolls with the ground speed (3 pixels)
     ld a, [wBirdX]
-    sub a, 2
+    ld hl, wCurrentFrameSpeed
+    sub a, [hl]
     ld [wBirdX], a
 
 DrawBird:

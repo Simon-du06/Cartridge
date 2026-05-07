@@ -18,10 +18,11 @@ InitCactus:
     ld [wCactusX], a
     ret
 
-UpdateCactus:
-    ; The cactus sits on the ground, so it scrolls with the ground speed (3 pixels)
+UpdateCactus::
+    ; The cactus sits on the ground, so it scrolls with the ground speed
     ld a, [wCactusX]
-    sub a, 3
+    ld hl, wCurrentFrameSpeed
+    sub a, [hl]
     ld [wCactusX], a
 
 DrawCactus:
