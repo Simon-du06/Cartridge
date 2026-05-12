@@ -170,7 +170,7 @@ DinoGameOver:
     and PAD_SELECT
     jp nz, EntryPoint              ; SELECT -> back to the game-selection menu
     ld a, [wCurKeys]
-    and PAD_START
+    and PAD_START | PAD_A
     jp nz, EntryPointDino          ; START  -> restart dino
     jp .checkSelect
 

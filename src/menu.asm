@@ -86,7 +86,7 @@ EntryPoint::
 
 .CheckUp:
     ld a, [wNewKeys]
-    and PAD_UP | PAD_A
+    and PAD_UP
     jr z, .CheckStart
     ld a, [wMenuSelection]
     or a
@@ -97,7 +97,7 @@ EntryPoint::
 
 .CheckStart:
     ld a, [wCurKeys]
-    and PAD_START
+    and PAD_START | PAD_A
     jp z, .MenuLoop
 
 .LaunchSelection:
