@@ -35,7 +35,7 @@ UpdateDuck:
 	jp nz, .applyJump
 
 	ld a, [wCurKeys]
-	and PAD_UP
+	and PAD_UP | PAD_A
 	jp z, .jumpOver
 
 	ld a, 1
