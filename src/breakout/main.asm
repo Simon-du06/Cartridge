@@ -12,6 +12,13 @@ DEF BLANK_TILE             EQU $08
 DEF BOTTOM_RAIL_TILE       EQU $09
 DEF BOMB_TILE              EQU $2E
 DEF BOMB_SPAWN_BREAKS       EQU 4
+DEF SCORE_TENS   EQU $9870
+DEF SCORE_ONES   EQU $9871
+DEF DIGIT_OFFSET EQU $19
+DEF RAMG_MAGIC_VALUE EQU $42
+DEF RAMG_MAGIC_LOCATION EQU $A000
+DEF SCORE1 EQU $A001
+DEF SCORE2 EQU $A002
 
 SECTION "Breakout Game Code", ROM0
 
@@ -95,6 +102,12 @@ EntryPointBreakout::
     ld [wBombTileAddr + 1], a
     ld [wLastBrickAddr], a
     ld [wLastBrickAddr + 1], a
+    ld [wFramePaddleCounter], a
+    ld [wScore], a
+
+    ld a, 1
+    ld [wSpeedPaddle], a
+    xor a
 
     ld hl, BreakingList
     ld b, 16
@@ -116,6 +129,7 @@ EntryPointBreakout::
 
 BreakoutMain:
     call WaitVBlank
+    call CheckPaddleFrameCounter
 
     ; Apply ball X momentum.
     ld a, [wBallMomentumX]
@@ -244,8 +258,20 @@ CheckLeft:
     and a, PAD_LEFT
     jp z, CheckRight
 Left:
+    ; ld a, [STARTOF(OAM) + 1]
+    ; dec a
+    ld a, [wSpeedPaddle]
+    ld b, a
     ld a, [STARTOF(OAM) + 1]
-    dec a
+    sub a, b
+    cp 16
+    jp c, CheckSubOne
+    ; jp z, BreakoutMain
+    ld [STARTOF(OAM) + 1], a
+    jp BreakoutMain
+CheckSubOne:
+    ld a, [STARTOF(OAM) + 1]
+    sub a, 1
     cp a, 15
     jp z, BreakoutMain
     ld [STARTOF(OAM) + 1], a
@@ -256,8 +282,20 @@ CheckRight:
     and a, PAD_RIGHT
     jp z, BreakoutMain
 Right:
+    ; ld a, [STARTOF(OAM) + 1]
+    ; inc a
     ld a, [STARTOF(OAM) + 1]
-    inc a
+    ld b, a
+    ld a, [wSpeedPaddle]
+    add a, b
+    cp 105
+    jp nc, CheckAddOne
+    ; jp z, BreakoutMain
+    ld [STARTOF(OAM) + 1], a
+    jp BreakoutMain
+CheckAddOne:
+    ld a, [STARTOF(OAM) + 1]
+    add a, 1
     cp a, 105
     jp z, BreakoutMain
     ld [STARTOF(OAM) + 1], a
@@ -279,6 +317,9 @@ CheckAndHandleBrick:
     dec hl
     call AddBreakingEntryAndCount
     ld a, [hl]
+    ld b, a
+    call UpdateScore
+    ld a, b
     ret
 CheckAndHandleBrickRight:
     cp a, BRICK_RIGHT
@@ -288,6 +329,9 @@ CheckAndHandleBrickRight:
     ld [hl], BRICK_LEFT_CRACKED
     call AddBreakingEntryAndCount
     ld a, [hl]
+    ld b, a
+    call UpdateScore
+    ld a, b
     ret
 
 ; --- Break-animation list (8 slots, 2 bytes per slot = left tile address) -
@@ -629,9 +673,38 @@ IncrementAndCheckNotLoose:
     jr z, GameOver
     ret
 
+CheckPaddleFrameCounter:
+    ld a, [wFramePaddleCounter]
+    inc a
+    ld [wFramePaddleCounter], a
+    cp 255
+    jr nz, .NotTimeToChangeSpeed
+    xor a
+    ld [wFramePaddleCounter], a
+    call IncreaseSpeed
+.NotTimeToChangeSpeed:
+    ret
+
+IncreaseSpeed:
+    ld a, [wSpeedPaddle]
+    inc a
+    ld [wSpeedPaddle], a
+    ret
+
+UpdateScore:
+    ld hl, wScore
+    ld a, [hl]
+    add 1
+    daa
+    ld [hl], a
+    ld hl, SCORE_TENS
+    call UpdateScoreTileMap
+    ret
+
 ; Game over: show the death screen, wait for Start/Select, then bounce back
 ; to the menu via the ROM EntryPoint.
 GameOver:
+    call SaveScore
     call WaitVBlank
     xor a
     ld [rLCDC], a
@@ -654,6 +727,44 @@ CheckSelectGameOver:
     jp nz, EntryPointBreakout      ; START  -> restart breakout
     jp CheckSelectGameOver
 
+; Draw a packed BCD score into the BG tilemap.
+; @param a: score in BCD (tens in high nibble)
+; @param hl: tilemap address for tens digit (ones is hl+1)
+UpdateScoreTileMap::
+    push af
+    and %11110000
+    swap a
+    add a, DIGIT_OFFSET
+    ld [hli], a
+    pop af
+    and %00001111
+    add a, DIGIT_OFFSET
+    ld [hl], a
+    ret
+
+InitScoresIfMissing::
+    ld a, RAMG_SRAM_ENABLE
+    ld [rRAMG], a
+    ld a, [RAMG_MAGIC_LOCATION]
+    cp a, RAMG_MAGIC_VALUE
+    ret z
+    ld a, RAMG_MAGIC_VALUE
+    ld [RAMG_MAGIC_LOCATION], a
+    xor a
+    ld [SCORE1], a
+    ld [SCORE2], a
+    ret
+
+SaveScore::
+    call InitScoresIfMissing
+    ld a, [wScore]
+    ld hl, SCORE2
+    cp a, [hl]
+    jr c, .Done
+    ld [SCORE2], a
+.Done:
+    ret
+
 SECTION "Breakout WRAM", WRAM0
 wFailedCatchBallCounter: db
 wBallMomentumX:          db
@@ -664,3 +775,6 @@ wBreakCounter:           db
 wBombActive:             db
 wBombTileAddr:           dw
 wLastBrickAddr:          dw
+wSpeedPaddle:            db
+wFramePaddleCounter:     db
+wScore:                  db

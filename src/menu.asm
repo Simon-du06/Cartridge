@@ -6,6 +6,13 @@ DEF MENU_CURSOR_INITIAL_LO EQU $07
 DEF MENU_CURSOR_INITIAL_HI EQU $99
 DEF MENU_OPTION_DINO       EQU 0
 DEF MENU_OPTION_BREAKOUT   EQU 1
+DEF MENU_SCORE_DINO_TENS     EQU $9910
+DEF MENU_SCORE_BREAKOUT_TENS EQU $9930
+DEF DIGIT_OFFSET EQU $19
+DEF RAMG_MAGIC_VALUE EQU $42
+DEF RAMG_MAGIC_LOCATION EQU $A000
+DEF SCORE1 EQU $A001
+DEF SCORE2 EQU $A002
 
 SECTION "Header", ROM0[$100]
     jp EntryPoint
@@ -32,6 +39,16 @@ EntryPoint::
     ld hl, $9800
     ld bc, TilemapMenuEnd - TilemapMenu
     call MemCopy
+
+    call InitScoresIfMissing
+    ld a, [SCORE1]
+    daa
+    ld hl, MENU_SCORE_DINO_TENS
+    call UpdateScoreTileMap
+    ld a, [SCORE2]
+    daa
+    ld hl, MENU_SCORE_BREAKOUT_TENS
+    call UpdateScoreTileMap
 
     call ClearOam
 
