@@ -22,7 +22,7 @@ OBJ_FILES       := $(patsubst %.asm,$(OBJ_DIR)/%.o,$(SRC_FILES))
 OBJ_DIRS        := $(sort $(dir $(OBJ_FILES)))
 
 ASMFLAGS        := -p0 -v -i $(INC_DIR)
-FIXFLAGS        := -v -p0
+FIXFLAGS        := -v -p 0xFF -m MBC5+RAM+BATTERY -r 3
 
 .PHONY: all clean fclean re
 

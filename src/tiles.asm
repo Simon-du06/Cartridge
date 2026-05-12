@@ -464,6 +464,17 @@ BreakoutBgTiles::
     dw `03303300
     dw `03300330
     dw `00000000
+
+    ; $2E - bomb tile
+    dw `00020000
+    dw `00022000
+    dw `00333300
+    dw `03333330
+    dw `03333130
+    dw `03331130
+    dw `03333330
+    dw `00333300
+
 BreakoutBgTilesEnd::
 
 ; --- Breakout sprite (OBJ) tiles ------------------------------------------
