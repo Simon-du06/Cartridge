@@ -26,12 +26,6 @@ EntryPointDino::
     ld bc, TilemapDinoEnd - TilemapDino
     call MemCopy
 
-    ; Window tilemap for a fixed HUD strip at the top of the screen.
-    ld de, TilemapHud
-    ld hl, $9C00
-    ld bc, TilemapHudEnd - TilemapHud
-    call MemCopy
-
     ; Duck OBJ tiles ($8000)
     ld de, DuckTiles
     ld hl, $8000
@@ -64,14 +58,8 @@ EntryPointDino::
     ; the fade completes so the duck/cactus appear *after* the world fades up.
     ld a, $FF
     ld [rBGP], a
-    ld a, LCDC_ON | LCDC_BG_ON | LCDC_WIN_ON | LCDC_WIN_9C00
+    ld a, LCDC_ON | LCDC_BG_ON
     ld [rLCDC], a
-
-    ; Window starts at the top-left corner of the screen.
-    ld a, 0
-    ld [rWY], a
-    ld a, 7
-    ld [rWX], a
 
     xor a
     ld [wFrameCounter], a
@@ -102,7 +90,7 @@ EntryPointDino::
 
     ld a, %11011000
     ld [rOBP0], a
-    ld a, LCDC_ON | LCDC_BG_ON | LCDC_WIN_ON | LCDC_WIN_9C00 | LCDC_OBJ_ON
+    ld a, LCDC_ON | LCDC_BG_ON | LCDC_OBJ_ON
     ld [rLCDC], a
 
 DinoMain:
