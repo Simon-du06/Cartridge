@@ -37,6 +37,7 @@ CHARMAP "B", $2A
 CHARMAP "D", $2B
 CHARMAP "I", $2C
 CHARMAP "K", $2D
+CHARMAP "Z", $2E
 
 ; Lowercase aliases (same tile index as uppercase glyph).
 CHARMAP "g", $0B
@@ -57,3 +58,6 @@ CHARMAP "b", $2A
 CHARMAP "d", $2B
 CHARMAP "i", $2C
 CHARMAP "k", $2D
+
+; Special chat
+CHARMAP "&", $2F
