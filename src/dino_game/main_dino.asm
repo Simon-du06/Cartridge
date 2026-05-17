@@ -75,6 +75,7 @@ EntryPointDino::
     call MemCopy
 
     call ClearOam
+    call ClearOamBuffer
 
     call InitAudio
 

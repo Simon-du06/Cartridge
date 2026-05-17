@@ -39,6 +39,17 @@ ClearOam::
     jp nz, .loop
     ret
 
+; Clear the shared OAM DMA source buffer in WRAM.
+ClearOamBuffer::
+    xor a
+    ld b, 160
+    ld hl, wOAMBuffer
+.loop:
+    ld [hli], a
+    dec b
+    jp nz, .loop
+    ret
+
 ; Copy a $FF-terminated tile-index string to the BG tilemap (or anywhere).
 ; Strings are produced by `db "..."` in source files that include
 ; src/text.inc -- the CHARMAP there translates each ASCII byte to the
