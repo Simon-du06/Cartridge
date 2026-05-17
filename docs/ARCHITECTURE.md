@@ -19,12 +19,14 @@ graph TD
     Dino["main_dino.asm<br/>EntryPointDino + DinoMain + DinoGameOver"]
     Dino -->|"INCLUDE"| Duck["duck.asm<br/>physics + draw + animation"]
     Dino -->|"INCLUDE"| Cactus["cactus.asm<br/>scroll + collision"]
+    Dino -->|"INCLUDE"| Bird["bird.asm<br/>scroll + collision + draw"]
+    Dino -->|"INCLUDE"| Speed["speed.asm<br/>scroll speed + difficulty ramp"]
     Dino -->|"jp EntryPoint"| Menu
 
     Breakout["breakout/main.asm<br/>EntryPointBreakout + main loop + GameOver"]
     Breakout -->|"jp EntryPoint"| Menu
 
-    Common["common.asm<br/>WaitVBlank, MemCopy, ClearOam,<br/>UpdateKeys, DrawText, FadeBgp"]
+    Common["common.asm<br/>WaitVBlank, MemCopy, ClearOam,<br/>ClearOamBuffer, UpdateKeys, DrawText, FadeBgp"]
     Tiles["tiles.asm<br/>all tile blobs + all tilemaps"]
     Text["text.inc<br/>CHARMAP for db &quot;...&quot;"]
 
@@ -86,7 +88,7 @@ sequenceDiagram
     autonumber
     participant CPU
     participant PPU
-    participant OAM
+    participant OAMBuf as wOAMBuffer
     participant Audio
 
     Note over PPU: Mode 1 (VBlank) starts at LY=144
@@ -97,8 +99,9 @@ sequenceDiagram
     CPU->>CPU: UpdateKeys (poll JOYP)
     CPU->>CPU: UpdateDuck (gravity, jump trigger)
     CPU->>CPU: UpdateCactus (wCactusX -= wScrollTick)
-    CPU->>OAM: DrawDuck (slots 8..16)
-    CPU->>OAM: DrawCactus (slots 0..7)
+    CPU->>OAMBuf: DrawDuck (slots 8..16)
+    CPU->>OAMBuf: DrawCactus (slots 0..7)
+    CPU->>OAMBuf: hOamDma copies wOAMBuffer to hardware OAM
     CPU->>CPU: CheckCactusCollision
 
     alt collision
@@ -176,6 +179,9 @@ $9800 ┌───────────────────────�
 $9BFF └────────────────────────────────┘
 ```
 
+`wOAMBuffer` lives in the WRAM section and is the shared DMA source for
+all sprites; `ClearOamBuffer` zeroes it before the dino scene starts.
+
 ### OAM layout — Dino
 
 ```
@@ -203,12 +209,14 @@ slot   0  1  2 ... 39
 | File                          | Owns                                                                |
 | ----------------------------- | ------------------------------------------------------------------- |
 | `src/menu.asm`                | ROM Header at `$0100`; `EntryPoint`; menu cursor/state; dispatcher  |
-| `src/common.asm`              | `WaitVBlank`, `MemCopy`, `ClearOam`, `UpdateKeys`, `DrawText`, `FadeBgp` + tables |
+| `src/common.asm`              | `WaitVBlank`, `MemCopy`, `ClearOam`, `ClearOamBuffer`, `UpdateKeys`, `DrawText`, `FadeBgp` + tables |
 | `src/tiles.asm`               | every tile blob, every tilemap (4 of them), `INCLUDE`s `text.inc`   |
 | `src/text.inc`                | `CHARMAP` translating ASCII → tile indices for `db "..."`           |
 | `src/dino_game/main_dino.asm` | `EntryPointDino`, `DinoMain`, `DinoGameOver`, `wScrollTick`         |
 | `src/dino_game/duck.asm`      | duck physics, foot animation, OAM rendering                         |
 | `src/dino_game/cactus.asm`    | cactus scroll, AABB collision, OAM rendering                        |
+| `src/dino_game/bird.asm`      | bird scroll, AABB collision, OAM rendering                          |
+| `src/dino_game/speed.asm`     | `InitSpeedSystem`, `UpdateScroll`, `IncreaseSpeed`                  |
 | `src/breakout/main.asm`       | `EntryPointBreakout`, ball physics, brick break-animation, paddle, GameOver |
 
 ---
@@ -218,6 +226,11 @@ slot   0  1  2 ... 39
 - **Mode 1 (VBlank)** — the only mode where unrestricted writes to OAM
   and VRAM are safe. `WaitVBlank` is called at the top of each game's
   main loop so all subsequent draws land in this window.
+- **DMA source vs. hardware OAM** — the games draw sprites into
+  `wOAMBuffer` in WRAM and then copy that buffer into hardware OAM with
+  `hOamDma`. `ClearOam` and `ClearOamBuffer` both matter: the first
+  clears visible sprite memory, the second prevents stale WRAM sprite
+  bytes from being DMA'd into the next scene.
 - **Sprite priority on tied X** — DMG: lower OAM index wins. We
   exploit this in dino by putting the cactus *before* the duck so the
   cactus draws on top of the duck where they horizontally align.

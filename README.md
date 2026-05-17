@@ -59,21 +59,23 @@ Emulicious, …) or flash it onto a real cart.
 ├── include/
 │   └── hardware.inc          standard RGBDS register/flag definitions
 └── src/
-    ├── common.asm            shared utilities + shared WRAM
+    ├── common.asm            shared utilities + shared WRAM + OAM DMA buffer
     ├── menu.asm              ROM Header + EntryPoint + selection menu
     ├── tiles.asm             ALL tile data + ALL tilemaps
     ├── text.inc              CHARMAP for "db \"...\"" string literals
     ├── dino_game/
     │   ├── main_dino.asm     EntryPointDino + dino main loop + game-over
     │   ├── duck.asm          duck state, physics, animation, OAM draw
-    │   └── cactus.asm        cactus state, scroll, collision, OAM draw
+    │   ├── cactus.asm        cactus state, scroll, collision, OAM draw
+    │   ├── bird.asm          bird state, scroll, collision, OAM draw
+    │   └── speed.asm         dino scroll-speed state + per-frame speed logic
     └── breakout/
         └── main.asm          EntryPointBreakout + physics + bricks + game-over
 ```
 
 Five `.asm` files are linked together (see `SRC_FILES` in the Makefile).
-`duck.asm` and `cactus.asm` are `INCLUDE`d into `main_dino.asm` rather
-than linked separately.
+  `duck.asm`, `cactus.asm`, `bird.asm`, and `speed.asm` are `INCLUDE`d
+  into `main_dino.asm` rather than linked separately.
 
 ---
 
@@ -154,7 +156,7 @@ without leaking implementation details into each other:
 
 | Module                   | Owns                                                  | Used by              |
 | ------------------------ | ----------------------------------------------------- | -------------------- |
-| `common.asm`             | `WaitVBlank`, `MemCopy`, `ClearOam`, `UpdateKeys`, `DrawText`, `FadeBgp` + tables | menu, dino, breakout |
+| `common.asm`             | `WaitVBlank`, `MemCopy`, `ClearOam`, `ClearOamBuffer`, `UpdateKeys`, `DrawText`, `FadeBgp` + tables | menu, dino, breakout |
 | `menu.asm`               | ROM Header `$0100`, `EntryPoint`, cursor + dispatcher | (dispatch target)    |
 | `tiles.asm`              | every tile blob, every tilemap                        | every game           |
 | `text.inc`               | `CHARMAP " "→$0A`, `"G"→$0B`, …                       | `tiles.asm`, `DrawText` callers |
@@ -173,6 +175,9 @@ Highlights of the cross-game reuse:
   dino's `DinoGameOver` — same death screen, two games.
 - **`FadeBgp` is one routine, three tables.** Menu fade-out, breakout
   fade-in, dino fade-in (inverted palette) all reuse the same stepper.
+- **`ClearOamBuffer` is part of the dino setup.** The shared WRAM DMA
+  source is cleared before the first `hOamDma` call so stale sprites
+  from the menu or a previous scene cannot leak into the first frame.
 
 For the *visible* effect of this reuse on the player and the deeper
 "why" behind each design choice, see
