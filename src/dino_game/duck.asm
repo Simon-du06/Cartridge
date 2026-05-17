@@ -35,7 +35,7 @@ UpdateDuck:
 	jp nz, .applyJump
 
 	ld a, [wCurKeys]
-	and PAD_UP
+	and PAD_UP | PAD_A
 	jp z, .jumpOver
 
 	ld a, 1
@@ -106,13 +106,12 @@ DrawDuck:
 	ld d, a
 	ld e, DUCK_OAM_X
 	ld b, 0
-	ld hl, STARTOF(OAM)
+ld hl, $C000
 	call Draw3ObjRow
-
-	ld a, d
-	add a, 8
-	ld d, a
-	call Draw3ObjRow
+        ld a, d
+        add a, 8
+        ld d, a
+        call Draw3ObjRow
 
 	; While airborne, freeze the feet on the static last-row tiles ($6,$7,$8).
 	ld a, [wIsJumping]

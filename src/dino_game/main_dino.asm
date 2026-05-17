@@ -1,6 +1,8 @@
 INCLUDE "hardware.inc"
+INCLUDE "src/dino_game/speed.asm"
 INCLUDE "src/dino_game/duck.asm"
 INCLUDE "src/dino_game/cactus.asm"
+INCLUDE "src/dino_game/bird.asm"
 
 SECTION "Dino Game Code", ROM0
 
@@ -36,10 +38,20 @@ EntryPointDino::
     ld bc, CactusTilesEnd - CactusTiles
     call MemCopy
 
+    ; Bird OBJ tiles
+    ld de, BirdTiles
+    ld hl, BIRD_VRAM_ADDR
+    ld bc, BirdTilesEnd - BirdTiles
+    call MemCopy
+
     call ClearOam
+
+    call InitDma
 
     call InitDuck
     call InitCactus
+    call InitBird
+    call InitSpeedSystem
 
     ; LCD comes back on with BG only and the palette pinned to all-black so
     ; the player doesn't see the fresh tilemap pop in. OBJs stay off until
@@ -54,8 +66,21 @@ EntryPointDino::
     ld [wCurKeys], a
     ld [wNewKeys], a
 
-    ld a, 2
-    ld [wScrollTick], a
+    ld [wScrollSkyX], a
+    ld [wScrollGroundX], a
+
+    ; Configure STAT_LYC to monitor line 93 (sky/ground boundary)
+    ld a, 93
+    ld [rLYC], a
+    ld a, STAT_LYC
+    ld [rSTAT], a
+
+    ; Enable STAT interrupt
+    ld a, [rIE]
+    or a, IE_STAT
+    ld [rIE], a
+
+    ei  ; Enable global interrupts
 
     ; Fade the BG up to the dino palette, then enable sprites.
     ld de, FadeBgpDinoIn
@@ -71,18 +96,36 @@ EntryPointDino::
 DinoMain:
     call WaitVBlank
 
-    ; Scroll the BG horizontally.
-    ld a, [rSCX]
-    ld hl, wScrollTick
-    add a, [hl]
+    ; Apply OAM DMA transfer from wOAMBuffer safely
+    ld a, HIGH(wOAMBuffer)
+    call hOamDma
+    
+    ; We need to call IncreaseSpeed once per frame
+    call IncreaseSpeed
+
+    ; Sky scroll (slower)
+    ld a, [wScrollSkyX]
+    add a, 1
+    ld [wScrollSkyX], a
     ld [rSCX], a
+
+    ; Ground scroll (dynamical based on UpdateScroll)
+    call UpdateScroll ; Sets wCurrentFrameSpeed
+    ld a, [wScrollGroundX]
+    ld hl, wCurrentFrameSpeed
+    add a, [hl]
+    ld [wScrollGroundX], a
 
     call UpdateKeys
     call UpdateDuck
     call UpdateCactus
+    call UpdateBird
     call DrawDuck
     call DrawCactus
+    call DrawBird
     call CheckCactusCollision
+    jp c, DinoGameOver
+    call CheckBirdCollision
     jp c, DinoGameOver
     jp DinoMain
 
@@ -90,6 +133,12 @@ DinoMain:
 ; player back to the menu. Reloads the font tile set first because
 ; TilemapMort references glyph tiles that don't live in DinoBgTiles.
 DinoGameOver:
+    ; Disable STAT interrupt so parallax doesn't affect death screen
+    di
+    ld a, [rIE]
+    and a, ~IE_STAT
+    ld [rIE], a
+
     call WaitVBlank
     xor a
     ld [rLCDC], a
@@ -126,4 +175,25 @@ DinoGameOver:
     jp .checkSelect
 
 SECTION "Dino WRAM", WRAM0
-wScrollTick: db
+wScrollSkyX:    db
+wScrollGroundX: db
+
+SECTION "Stat Handler", ROM0[$0048]
+StatHandler::
+    push af
+    push hl
+
+    ; Check if it's an LYC interrupt
+    ld a, [rSTAT]
+    and a, STAT_LYCF
+    jp z, .exit
+
+    ; Apply ground scroll position for the bottom half of the screen
+    ld hl, wScrollGroundX
+    ld a, [hl]
+    ldh [rSCX], a
+
+.exit:
+    pop hl
+    pop af
+    reti

@@ -2,7 +2,7 @@ DEF CACTUS_Y      EQU 86
 DEF CACTUS_START_X EQU 93
 DEF CACTUS_VRAM_ADDR EQU $8190
 DEF CACTUS_TILE_BASE EQU (CACTUS_VRAM_ADDR - $8000) / 16
-DEF CACTUS_OAM_ADDR  EQU $FE00 + (9 * 4)
+DEF CACTUS_OAM_ADDR  EQU $C000 + (9 * 4)
 DEF CACTUS_HITBOX_X  EQU 8
 DEF CACTUS_HITBOX_Y  EQU 16
 DEF CACTUS_HITBOX_W  EQU 4
@@ -18,9 +18,10 @@ InitCactus:
     ld [wCactusX], a
     ret
 
-UpdateCactus:
+UpdateCactus::
+    ; The cactus sits on the ground, so it scrolls with the ground speed
     ld a, [wCactusX]
-    ld hl, wScrollTick
+    ld hl, wCurrentFrameSpeed
     sub a, [hl]
     ld [wCactusX], a
 

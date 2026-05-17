@@ -514,6 +514,10 @@ CactusTiles::
     INCBIN "../assets/cactus.chr", 0, 128
 CactusTilesEnd::
 
+BirdTiles::
+    INCBIN "../assets/bird.chr", 0, 64
+BirdTilesEnd::
+
 
 SECTION "Tilemaps", ROM0
 
