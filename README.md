@@ -18,7 +18,6 @@ external runtime libraries.
 > - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — module graph,
 >   state machine, per-frame loops, memory map, OAM layout, hardware
 >   concepts the ROM relies on
-> - [`CHANGELOG.md`](CHANGELOG.md) — what changed and when
 
 ---
 
@@ -52,7 +51,6 @@ Emulicious, …) or flash it onto a real cart.
 ├── Makefile                  build (rgbasm + rgblink + rgbfix)
 ├── cartridge.gb              output ROM (committed for convenience)
 ├── README.md                 this file
-├── CHANGELOG.md              chronological project history
 ├── docs/
 │   └── ARCHITECTURE.md       diagrams + deep dive
 ├── assets/                   *.chr tile blobs + source PNGs
