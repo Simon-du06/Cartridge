@@ -76,6 +76,8 @@ EntryPointDino::
 
     call ClearOam
 
+    call InitAudio
+
     call InitDma
 
     call InitDuck

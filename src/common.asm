@@ -58,6 +58,34 @@ DrawText::
     inc de
     jr .loop
 
+; Power on the APU and route every channel to both speakers at full volume.
+; Call once during boot before triggering any sound.
+InitAudio::
+    ld a, $80
+    ldh [rNR52], a       ; APU master power on
+    ld a, $FF
+    ldh [rNR51], a       ; CH1..4 -> both speakers
+    ld a, $77
+    ldh [rNR50], a       ; max volume left + right
+    ret
+
+; Fire-and-forget jump blip on CH1 (square wave). Mirrors the chrome dino's
+; short ascending pluck: max-volume tone
+DEF BEEP_TARGET_HZ EQU 520
+DEF BEEP_FREQ EQU 2048 - (131072 / BEEP_TARGET_HZ)
+
+PlayBeep::
+    xor a
+    ldh [rNR10], a
+    ld a, $80
+    ldh [rNR11], a      
+    ld a, $F1
+    ldh [rNR12], a      
+    ld a, LOW(BEEP_FREQ)
+    ldh [rNR13], a
+    ld a, HIGH(BEEP_FREQ) | $80
+    ldh [rNR14], a
+    ret
 
 ; Step BGP through a sequence of palette bytes, holding each one for H
 ; vblanks. Used for fade-in/fade-out transitions: pre-set rBGP to the
