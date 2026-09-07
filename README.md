@@ -1,17 +1,25 @@
-# cartridge — Game Boy multi-cart (Dino Run + Breakout)
+# Cartridge — Game Boy multi-game ROM
 
-A single Game Boy ROM that boots into a selection menu and lets the
-player launch either of two complete games:
+A Game Boy ROM written in RGBASM that boots into a selection menu and
+lets the player launch either of two games:
 
-- **Dino** — Chrome-dino-style runner: jump (`UP`) over cacti, the
-  background scrolls under a sprite of a "duck" with an animated feet
-  row that freezes while airborne.
-- **Breakout** — wall + brick playfield, paddle controlled with `LEFT`
-  / `RIGHT`, ball bounces, bricks crack through three damage states
-  before disappearing.
+- **Dino** — a Chrome Dino-inspired runner with animated sprites,
+  parallax scrolling, progressively increasing speed, obstacles, sound,
+  scoring and a high score saved to cartridge RAM.
+- **Breakout** — a brick-breaking game with paddle and ball physics,
+  three-stage brick destruction, a bomb power-up and a persistent
+  leaderboard.
 
 Built with [RGBDS](https://rgbds.gbdev.io/) (`rgbasm` 1.0.1+), no
 external runtime libraries.
+
+## Highlights
+
+- Runs in an emulator or on original Game Boy hardware through a flash cart
+- Two games packaged into a single 32 KB ROM with a shared menu
+- Direct use of the PPU, VRAM, OAM, DMA, joypad, audio and cartridge SRAM
+- Reusable assembly routines for input, text, fades and sprite-buffer management
+- Hand-authored tile maps, sprites and collision/gameplay logic
 
 > **Documentation map**
 > - this file — overview, controls, build, file layout
@@ -238,3 +246,15 @@ to the project root.
   `CHARMAP`, `INCBIN`, etc.
 - [gbdev.io GB ASM tutorial — entry point chapter](https://gbdev.io/gb-asm-tutorial/part3/entry-point.html)
   — basis for our text-rendering system.
+
+---
+
+## Authors
+
+Developed by [Simon Puccio](https://github.com/Simon-du06) and Enzo Bazin
+as an Epitech student project. Simon worked primarily on the Dino game,
+shared systems and project documentation; Enzo worked primarily on
+Breakout, including its power-up and leaderboard features.
+
+No license is currently granted for reuse or redistribution of the source
+code. A license may be added later with the agreement of both authors.
